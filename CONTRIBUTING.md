@@ -4,7 +4,7 @@
 
 Use `main` in [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io) as the reviewed source. Work in a current clone of that repository. The earlier Downloads handoff is a snapshot from 27 October 2026 and does not receive later changes automatically. Do not replace current source with that snapshot.
 
-`gh-pages` contains generated public files. Application changes belong on source branches, then `main`. Do not hand-edit generated JavaScript or media on the publishing branch. Deployment records identify the source commit used for a release.
+Cloudflare serves the primary website; `gh-pages` contains generated files for the independent GitHub demo. Application changes belong on source branches, then `main`. Do not hand-edit generated JavaScript or media on the publishing branch. Deployment records identify the source commit and artifact used for each release.
 
 ## Make a change
 
@@ -39,6 +39,6 @@ The CI YAML in `docs/ci-check.example.yml` is an inactive example. There is no r
 
 ## Release and handoff
 
-Merge reviewed source to `main`, push it and follow [Deployment](docs/DEPLOYMENT.md). A dry run is the default. Publishing is an explicit action and uses a new descendant commit on `gh-pages`, preserving rollback history.
+Merge reviewed source to `main`, push it and follow [Deployment](docs/DEPLOYMENT.md). Prepare and dry-run the Cloudflare production release before explicitly publishing it; preview releases use a separate Worker. Publish the independent GitHub demo through its Pages tool, which defaults to a dry run and preserves history with descendant commits on `gh-pages`. Record both hosting results separately.
 
 A handoff should include the source commit, deployed source commit, active URL, checks actually completed and remaining work. Update domain status only after the custom domain and HTTPS have been verified. Keep raw traces, screenshots and private notes outside public source unless a particular sanitized artifact is intentionally approved for publication.

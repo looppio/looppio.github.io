@@ -18,7 +18,7 @@ Do not add unconfirmed personal roles, periods, durations, metrics, awards or cl
 6. Add the ID to both explicit taxonomy maps. Keep the project's primary and filter metadata aligned.
 7. Update the independent inventory and grouping expectations in `tests/project-taxonomy.test.mjs`, add meaningful media checks when needed, then run `npm run check` and inspect the case locally.
 
-IDs and slugs should be unique and stable. The route handler accepts `/projects/<slug>` with or without a trailing slash. GitHub Pages build routes are derived from this inventory. Changing a slug requires a deliberate link or redirect migration; do not silently break shared links.
+IDs and slugs should be unique and stable. The route handler accepts `/projects/<slug>` with or without a trailing slash. Cloudflare and GitHub Pages build routes are derived from this inventory. Changing a slug requires a deliberate link or redirect migration; do not silently break shared links.
 
 ## Project shape
 

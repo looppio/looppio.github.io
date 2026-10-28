@@ -129,8 +129,18 @@ export async function validatePagesBuild(
   client,
   inventory,
   config,
-  { source, version, requireClean = false, gitCheckout = false } = {},
+  {
+    source,
+    version,
+    requireClean = false,
+    gitCheckout = false,
+    platform = 'github-pages',
+    deploymentStatus = 'candidate',
+  } = {},
 ) {
+  if (!['github-pages', 'cloudflare-pages', 'cloudflare-workers-static'].includes(platform))
+    throw new Error('Unsupported static hosting platform.');
+  const cloudflare = platform !== 'github-pages';
   validateConfig(config);
   const routes = pageRoutes(inventory);
   const files = await artifactFiles(client, '', gitCheckout);
@@ -148,7 +158,12 @@ export async function validatePagesBuild(
       (/source\.json$/.test(file) && file !== releaseFilename)
     )
       throw new Error(`Private or development file in Pages output: ${file}`);
-    if (file.endsWith('.html') && !expectedHtml.has(file))
+    if (
+      cloudflare &&
+      /(?:^|\/)(?:CNAME|\.nojekyll|_worker\.js|functions|server)(?:\/|$)/i.test(file)
+    )
+      throw new Error(`Non-static or host-specific file in Cloudflare output: ${file}`);
+    if (file.endsWith('.html') && !expectedHtml.has(file) && !(cloudflare && file === '404.html'))
       throw new Error(`Unexpected or stale Pages route: ${file}`);
   }
   for (const file of expectedHtml) {
@@ -175,13 +190,17 @@ export async function validatePagesBuild(
       throw new Error(`Missing or changed runtime license notice: ${name}`);
     }
   }
-  if (
+  if (cloudflare) {
+    const notFound = await readFile(resolve(client, '404.html'), 'utf8');
+    if (!/\b404\b/.test(notFound) || /<script\b/i.test(notFound) || notFound === html)
+      throw new Error('Cloudflare output needs a static 404.html without the SPA application.');
+  } else if (
     !files.includes('.nojekyll') ||
     (await readFile(resolve(client, '.nojekyll'), 'utf8')) !== ''
   ) {
     throw new Error('Pages output needs an empty .nojekyll file.');
   }
-  if ((await readDomain(client)) !== config.customDomain)
+  if (!cloudflare && (await readDomain(client)) !== config.customDomain)
     throw new Error('Pages CNAME does not match pages.config.json.');
   const release = JSON.parse(await readFile(resolve(client, releaseFilename), 'utf8'));
   const keys = [
@@ -195,8 +214,18 @@ export async function validatePagesBuild(
     'sourceDirty',
     'version',
   ];
+  if (cloudflare) keys.push('deploymentStatus', 'platform');
   if (
-    Object.keys(release).sort().join() !== keys.join() ||
+    Object.keys(release).sort().join() !== keys.sort().join() ||
+    (cloudflare &&
+      (release.platform !== platform ||
+        !['candidate', 'production'].includes(deploymentStatus) ||
+        release.deploymentStatus !== deploymentStatus ||
+        (deploymentStatus === 'candidate' && config.customDomain !== null) ||
+        (deploymentStatus === 'production' &&
+          (platform !== 'cloudflare-workers-static' ||
+            config.customDomain !== 'alextish.com' ||
+            release.sourceDirty !== false)))) ||
     release.schemaVersion !== 1 ||
     release.repository !== config.repository ||
     release.sourceBranch !== config.sourceBranch ||

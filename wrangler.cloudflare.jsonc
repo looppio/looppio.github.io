@@ -1,0 +1,33 @@
+{
+  "name": "alextish-portfolio-preview",
+  "main": "worker/cloudflare-media.js",
+  "compatibility_date": "2026-10-28",
+  "workers_dev": true,
+  "preview_urls": false,
+  "build": {
+    "command": "node scripts/check-cloudflare-worker.mjs",
+  },
+  "assets": {
+    "directory": "./dist/cloudflare",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/assets/*.mp4", "/assets/*.pdf"],
+  },
+  "env": {
+    "production": {
+      "name": "alextish-portfolio",
+      "preview_urls": false,
+      "build": {
+        "command": "node scripts/check-cloudflare-worker.mjs --assets dist/cloudflare-production",
+      },
+      "assets": {
+        "directory": "./dist/cloudflare-production",
+        "binding": "ASSETS",
+        "html_handling": "auto-trailing-slash",
+        "not_found_handling": "404-page",
+        "run_worker_first": ["/assets/*.mp4", "/assets/*.pdf"],
+      },
+    },
+  },
+}

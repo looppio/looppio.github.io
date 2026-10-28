@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "files": {
+    "/assets/Oleksii_Tyshchenko_CV.pdf": {
+      "bytes": 165730,
+      "sha256": "c362eb94c8092ede6709571b59e6adc3e373439d1d2a35756bbb565490947abd"
+    },
+    "/assets/cases/15m/desktop-catalog-sort.mp4": {
+      "bytes": 240722,
+      "sha256": "9b7163dfe154d684095e652ac1b9275d1d8fcdce9b4852b04a0e825ea589673c"
+    },
+    "/assets/cases/15m/desktop-event-filter.mp4": {
+      "bytes": 220124,
+      "sha256": "1329139677881f1fc96f8bcece624d3fa79f2d98b8474141cc9eb1dadbbd03c3"
+    },
+    "/assets/cases/15m/desktop-home-explore.mp4": {
+      "bytes": 465727,
+      "sha256": "95d15f2b57f9eaf2a9b5e298983450b30c3846e329ddb3b1f9e9e9895a59e805"
+    },
+    "/assets/cases/15m/mobile-catalog-filter.mp4": {
+      "bytes": 121940,
+      "sha256": "379c6126428363f805e3374212428c0a451f485a717ff295fcf5698a85157ce6"
+    },
+    "/assets/cases/15m/mobile-navigation-menu.mp4": {
+      "bytes": 65857,
+      "sha256": "66fca752cc36eb05cd39b6471489fc87cb161862968674ab4182b7bda415916e"
+    },
+    "/assets/cases/caregiver/assistant-demo.mp4": {
+      "bytes": 2039241,
+      "sha256": "ac9c03302b0e2f5e803fe4512b7fb14d0832fbe752b7f4c16d0c49d10d0627d2"
+    },
+    "/assets/cases/caregiver/logo-animation.mp4": {
+      "bytes": 991002,
+      "sha256": "0e2c5c818e0c147cc73176a008b2404751227a8b0feb949de064363626e8f0e5"
+    },
+    "/assets/cases/caregiver/voice-onboarding.mp4": {
+      "bytes": 90897,
+      "sha256": "9f519d2ca601ecd88f6f4b2578b4340f961b929f53d5ae1ec2c2366f79b7bc60"
+    },
+    "/assets/cases/dexsport/desktop-casino-search.mp4": {
+      "bytes": 634788,
+      "sha256": "b2ce149bdae04328b8143c0325a71dd774457e7ccaa5b0d0474cc7f0c3072b11"
+    },
+    "/assets/cases/dexsport/desktop-market-filters.mp4": {
+      "bytes": 119704,
+      "sha256": "6a6df1b3b4da474c44a9646c040a54b9a8f0d8d4fbc11bd413271db532cbc3eb"
+    },
+    "/assets/cases/dexsport/desktop-match-navigation.mp4": {
+      "bytes": 129924,
+      "sha256": "db7edb4145c0763c37b77aaf7f8a65aeec8294c4d091c8a4f1c533d4cea51364"
+    },
+    "/assets/cases/dexsport/gallery-preview.mp4": {
+      "bytes": 3832908,
+      "sha256": "1b034f716441fbb6ed90a557180529eddd53f88bac5205ec0526b3f7fdf9c22c"
+    },
+    "/assets/cases/dexsport/mobile-navigation-menu.mp4": {
+      "bytes": 282671,
+      "sha256": "f042b701a4e1f0a0c19be9ccf670a96c90ccb96b1bde375e7ef9cf39e9add710"
+    },
+    "/assets/cases/dexsport/mobile-provider-navigation.mp4": {
+      "bytes": 87488,
+      "sha256": "510c7ee876078aad9eb8c00c74f7aaa0d2f6213d7367d0d3b15b50f4696c5825"
+    },
+    "/assets/cases/dexsport/mobile-sort-drawer.mp4": {
+      "bytes": 249118,
+      "sha256": "7f72f52acc68c5f10da98774972fd0527ac7db97009aa9b0d984fa154558726e"
+    },
+    "/assets/cases/ndax/dashboard.mp4": {
+      "bytes": 1718810,
+      "sha256": "d283e7b71718f6bbab7f71a82c1db149f62c53008069f565928adde64a14a06e"
+    },
+    "/assets/cases/ndax/onboarding.mp4": {
+      "bytes": 476653,
+      "sha256": "ab5cd6cad480213b2254dd2c790e22e5cd581b3f9679973b8ee8c8fecf01ded6"
+    },
+    "/assets/cases/ndax/simple-trading.mp4": {
+      "bytes": 323442,
+      "sha256": "6ec9767710fe6d4b38bace5fb45d7254730e89caba3f7453eca0b1f7dfe8a90a"
+    },
+    "/assets/cases/performance-marketing/campaign-card-controls.mp4": {
+      "bytes": 116014,
+      "sha256": "00839a9f77372a13d43b709eb0e54f6d4f2f69a75b511837b922dadc13054881"
+    },
+    "/assets/cases/performance-marketing/campaign-creation.mp4": {
+      "bytes": 238886,
+      "sha256": "743972337203dc9a8b3d3bd3fcf8e864e5a85a66a0fdb5950a2000e71c923d66"
+    },
+    "/assets/cases/performance-marketing/campaign-scaling.mp4": {
+      "bytes": 99330,
+      "sha256": "5ab81fe5784640bc2fdc0246d27f096d4fee732c39f4917e46d9597bf413c21c"
+    },
+    "/assets/cv/Alex_Tyshchenko_CV_AI_SaaS.pdf": {
+      "bytes": 1283303,
+      "sha256": "f4650fc7475ee2924d7f8ff485478b43e3baa0d4523e121eaf56cde9cf599b5a"
+    },
+    "/assets/cv/Alex_Tyshchenko_CV_Design_Engineer.pdf": {
+      "bytes": 1283382,
+      "sha256": "6de5c6d095d0c5643aa7b611d70f0e44fa7a85847b26199f7323f007bc931d5e"
+    },
+    "/assets/cv/Alex_Tyshchenko_CV_FinTech_Web3.pdf": {
+      "bytes": 1283554,
+      "sha256": "bad62c4f1fe52588e63c812492bb305e5d72fb5ecd7e45ca63c1bb8a03636c22"
+    },
+    "/assets/cv/Alex_Tyshchenko_CV_Product_Design.pdf": {
+      "bytes": 1283527,
+      "sha256": "7b5c5a8a60470b769bea903c0378c6a392888dcbe0e28ec2a48c809b9b47a263"
+    },
+    "/assets/cv/Alex_Tyshchenko_CV_iGaming.pdf": {
+      "bytes": 1283471,
+      "sha256": "837c74f75fffe0ee67de2ee5f3be0b4042e9daa39123da880b6d99a11280a901"
+    },
+    "/assets/origin-sky.mp4": {
+      "bytes": 1018453,
+      "sha256": "bd5ba27bbce09a6f4fc0887758bf37bf33cdc341e843200cc55c84fb1963af2e"
+    }
+  }
+}

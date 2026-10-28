@@ -2,9 +2,10 @@
 
 A React and Three.js portfolio with an animated sky, WebGL gallery, category filters, case studies and five downloadable CV versions.
 
-- **Pages address:** [looppio.github.io](https://looppio.github.io/) (redirects to the configured custom domain)
+- **Website:** [alextish.com](https://alextish.com/), hosted on Cloudflare Workers Static Assets.
+- **GitHub demo:** [looppio.github.io](https://looppio.github.io/), published separately from `gh-pages`.
 - **Source:** [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io), branch `main`
-- **Custom domain:** `alextish.com`. As of 28 October 2026, 22:26 Kyiv, Cloudflare Free is active and public DNS records resolve correctly. GitHub's own DNS check still fails and HTTPS issuance remains pending; HTTPS is not enabled. Account ownership verification still needs confirmation. The Pages address redirects to this domain, so it is not an independent fallback. Registration stays at Vicetemple. See the [current domain status and retry steps](docs/DEPLOYMENT.md#connect-alextishcom).
+- **Domain and HTTPS:** registration stays at Vicetemple; Cloudflare manages DNS and the free certificate. See [Deployment](docs/DEPLOYMENT.md) for the current configuration, validation and rollback.
 
 The current repository is the canonical project. The Downloads handoff is a dated snapshot, not a synchronized working copy. Keep private collection material and archives outside this repository.
 
@@ -32,34 +33,36 @@ The combined check covers formatting, asset validation, production build, regres
 
 ## Publish an update
 
-Source lives on `main`; the checked client build lives on `gh-pages`. GitHub Pages provides hosting for this public repository. No paid server or database is required; domain registration and renewal are separate.
+Source lives on `main`. Cloudflare hosts the primary website; GitHub Pages retains a separate demo on `gh-pages`. No paid server or database is required; domain registration and renewal are separate. Direct static requests are free and unlimited. Video/PDF requests use a small streaming handler and count toward the Workers Free allowance of 100,000 requests per day.
 
 After committing and pushing reviewed source to `main`:
 
 ```sh
-npm run deploy:pages
+npm run check
+npm run prepare:cloudflare -- --production --domain alextish.com
+npm exec --yes --package=wrangler@4.155.0 -- wrangler deploy --config wrangler.cloudflare.jsonc --env production --dry-run --outdir dist/cloudflare-worker-preview
 ```
 
-This prepares and checks a release without pushing it. To publish deliberately:
+This prepares and validates a production package without uploading it. To publish deliberately:
 
 ```sh
-npm run deploy:pages -- --publish
+npm exec --yes --package=wrangler@4.155.0 -- wrangler deploy --config wrangler.cloudflare.jsonc --env production
 ```
 
-The release tool rebuilds from clean source and records its commit in `release-source.json`. It preserves deployment history. Read [Deployment](docs/DEPLOYMENT.md) for prerequisites, domain setup, live checks and rollback.
+Preparation requires clean source matching remote `main` and records its commit in `release-source.json`. The Worker build verifies video/PDF sizes and hashes against the exact asset package. Preview deployments use a separate Worker. Update the GitHub demo with `npm run deploy:pages -- --publish`; its custom domain stays unset. Read [Deployment](docs/DEPLOYMENT.md) before publishing, changing media or rolling back.
 
 ## Maintainer guide
 
-| Document                                      | Use it for                                          |
-| --------------------------------------------- | --------------------------------------------------- |
-| [Contributing](CONTRIBUTING.md)               | Making, reviewing and handing off changes           |
-| [Content](docs/CONTENT.md)                    | Cases, categories, media and CVs                    |
-| [Architecture](docs/ARCHITECTURE.md)          | Rendering, routing, scrolling and lifecycle         |
-| [Deployment](docs/DEPLOYMENT.md)              | GitHub Pages, `alextish.com`, releases and rollback |
-| [Performance](docs/PERFORMANCE.md)            | Dated baseline, repeatable measurements and limits  |
-| [Security](SECURITY.md)                       | Private reporting and publishing boundaries         |
-| [Third-party notices](THIRD_PARTY_NOTICES.md) | Dependency notices and content permissions          |
-| [Agent contract](AGENTS.md)                   | Established design and content requirements         |
-| [QA history](design-qa.md)                    | Checks actually performed on earlier changes        |
+| Document                                      | Use it for                                         |
+| --------------------------------------------- | -------------------------------------------------- |
+| [Contributing](CONTRIBUTING.md)               | Making, reviewing and handing off changes          |
+| [Content](docs/CONTENT.md)                    | Cases, categories, media and CVs                   |
+| [Architecture](docs/ARCHITECTURE.md)          | Rendering, routing, scrolling and lifecycle        |
+| [Deployment](docs/DEPLOYMENT.md)              | Cloudflare, GitHub demo, releases and rollback     |
+| [Performance](docs/PERFORMANCE.md)            | Dated baseline, repeatable measurements and limits |
+| [Security](SECURITY.md)                       | Private reporting and publishing boundaries        |
+| [Third-party notices](THIRD_PARTY_NOTICES.md) | Dependency notices and content permissions         |
+| [Agent contract](AGENTS.md)                   | Established design and content requirements        |
+| [QA history](design-qa.md)                    | Checks actually performed on earlier changes       |
 
-The speed baseline includes a slow first load under simulated Slow 4G. The v1.1.0 startup and mobile rendering changes are implemented, with post-deployment measurement and iPhone 13/Telegram verification still pending; desktop and emulated results do not establish physical-phone performance. The visual experience requires WebGL. See [the measured baseline and known limits](docs/PERFORMANCE.md) before making speed or compatibility claims.
+The speed baseline includes a slow first load under simulated Slow 4G. The v1.2.0 release includes startup, mobile rendering, scroll and lens fixes. Physical iPhone 13/Telegram verification is still required; desktop and emulated results do not establish physical-phone performance. The visual experience requires WebGL. See [the measured baseline and known limits](docs/PERFORMANCE.md) before making speed or compatibility claims.

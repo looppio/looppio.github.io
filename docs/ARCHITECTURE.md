@@ -39,7 +39,7 @@ The `reference/` directory contains adapted rendering mechanics, not a separate 
 - `tags` stores recognized category IDs in canonical category order.
 - `all=1` requests the complete gallery when there are no recognized category tags.
 
-See [Content](CONTENT.md) for the exact selection and button behavior. A hosting provider must support direct navigation to these paths; the client cannot fix a server returning 404 before its JavaScript runs. The GitHub Pages build emits a real HTML entry for each registered route; Sites uses the existing worker fallback.
+See [Content](CONTENT.md) for the exact selection and button behavior. A hosting provider must support direct navigation to these paths; the client cannot fix a server returning 404 before its JavaScript runs. The Cloudflare and GitHub Pages packages emit a real HTML entry for each registered route; Sites uses the existing worker fallback.
 
 ## DOM and WebGL cooperation
 
