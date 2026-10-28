@@ -1,0 +1,143 @@
+.boot-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  color: #fff;
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  isolation: isolate;
+  pointer-events: auto;
+  touch-action: none;
+}
+.boot-loader::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: #123057 url('/assets/origin-sky-poster.jpg') center/cover no-repeat;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+.boot-loader-ready::before,
+.boot-loader-revealing::before {
+  opacity: 0;
+}
+.boot-loader-content {
+  position: relative;
+  width: min(100%, 166px);
+  height: 5px;
+}
+/* Source SH: three rounded h-5 w-50 strips with gap-x-8. */
+.boot-loader-bars {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  height: 5px;
+}
+.boot-loader-bar {
+  display: block;
+  position: relative;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.boot-loader-bar i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #fff;
+  transform-origin: left center;
+  will-change: transform;
+}
+.boot-loader-caption {
+  position: absolute;
+  top: 22px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+  color: rgba(255, 255, 255, 0.88);
+  overflow: hidden;
+}
+.boot-loader-caption > span {
+  transition:
+    transform 0.35s cubic-bezier(0.7, 0, 0.2, 1),
+    opacity 0.35s ease;
+}
+.boot-loader-percent {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #fff;
+}
+.boot-loader-revealing .boot-loader-bars {
+  visibility: hidden;
+}
+.boot-loader-revealing .boot-loader-caption > span {
+  transform: translateY(-110%);
+  opacity: 0;
+}
+/* The loader's actual planes grow into the ribbon. The screen never fades. */
+html[data-portfolio-boot='loading']
+  :is(.site-header, .site-footer, .full-index, .case-view, .gallery-card, .gallery-hitarea) {
+  visibility: hidden !important;
+}
+html[data-portfolio-boot='revealing'] :is(.site-header, .site-footer) {
+  opacity: var(--boot-hud-alpha, 0) !important;
+}
+html[data-portfolio-boot='revealing'] :is(.full-index, .case-view) {
+  opacity: var(--boot-content-alpha, 0) !important;
+}
+html[data-portfolio-boot='revealing'] .gallery:not(.gl-ready) .gallery-viewport {
+  visibility: hidden;
+}
+.boot-loader-recovery {
+  margin-top: 24px;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: -0.02em;
+}
+.boot-loader-recovery p {
+  margin: 0 0 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+.boot-loader-recovery button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 9px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.boot-loader-recovery button:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.boot-loader-recovery button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-loader::before,
+  .boot-loader-caption > span {
+    transition: none;
+  }
+  .boot-loader-bar i {
+    will-change: auto;
+  }
+}

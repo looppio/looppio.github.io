@@ -1,0 +1,25 @@
+# Reproducible dependencies and build output
+node_modules/
+dist/
+.vite/
+coverage/
+
+# Local credentials and machine settings
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Local review captures and scratch files
+qa/
+work/
+tmp/
+*.tsbuildinfo
+
+# Keep the portable hosting descriptor under version control.
+!.openai/
+!.openai/hosting.json

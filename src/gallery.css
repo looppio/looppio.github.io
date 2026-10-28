@@ -1,0 +1,178 @@
+.gallery {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+.gallery canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.gallery-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: auto;
+  touch-action: none;
+}
+.gallery-track {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  display: flex;
+  gap: 1rem;
+  transform: translateY(-50%);
+}
+.gallery-card {
+  position: relative;
+  display: block;
+  flex: none;
+  height: 43.5svh;
+  max-height: 55rem;
+  width: auto;
+  aspect-ratio: var(--aspect, 1.6);
+  border-radius: 2rem;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+.gallery-card > img {
+  display: block;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.gallery-caption {
+  position: absolute;
+  left: 2rem;
+  bottom: 2rem;
+  font-size: 1.8rem;
+  letter-spacing: -0.05em;
+  white-space: nowrap;
+  line-height: 1.2;
+  color: #fff;
+  pointer-events: none;
+}
+.gallery-arrow {
+  position: absolute;
+  right: 2rem;
+  bottom: 2rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+}
+.gl-ready .gallery-card {
+  overflow: visible;
+  background: transparent;
+}
+.gl-ready .gallery-card > img,
+.gl-ready .gallery-caption,
+.gl-ready .gallery-arrow,
+.gl-ready .gallery-tags {
+  visibility: hidden;
+}
+.gallery-full .gallery-viewport,
+.gallery-project .gallery-viewport {
+  pointer-events: none;
+  visibility: hidden;
+}
+.gallery-hitarea {
+  position: absolute;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;
+  pointer-events: auto;
+  z-index: 2;
+}
+.gallery-hitarea:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 4px;
+}
+.gallery-full .gallery-hitarea,
+.gallery-project .gallery-hitarea {
+  pointer-events: none;
+  visibility: hidden;
+}
+.lens-disc {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 60rem;
+  height: 60rem;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  visibility: hidden;
+}
+@media (max-width: 649px) {
+  .gallery-track {
+    top: 0;
+    transform: none;
+    flex-direction: column;
+    padding: 0 2rem;
+    gap: 2rem;
+  }
+  .gallery-card {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    border-radius: 1.5rem;
+  }
+  .gallery-caption {
+    left: 1rem;
+    font-size: 1.6rem;
+  }
+  .gallery-arrow {
+    right: 1rem;
+  }
+  .lens-disc {
+    width: 42rem;
+    height: 42rem;
+  }
+}
+
+.gallery-card:after {
+  content: '';
+  position: absolute;
+  inset: 50% 0 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
+  pointer-events: none;
+}
+.gallery-caption,
+.gallery-arrow,
+.gallery-tags {
+  z-index: 1;
+}
+.gallery-tags {
+  position: absolute;
+  left: 2rem;
+  right: 2rem;
+  top: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.gallery-tags span {
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 1.05rem;
+  line-height: 2.2rem;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.gl-ready .gallery-card:after {
+  display: none;
+}

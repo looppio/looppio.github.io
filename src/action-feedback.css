@@ -1,0 +1,144 @@
+.action-feedback {
+  position: fixed;
+  z-index: 110;
+  width: 330px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 19px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 22px;
+  background: rgba(246, 251, 255, 0.91);
+  color: #111;
+  box-shadow: 0 10px 36px rgba(0, 34, 65, 0.16);
+  backdrop-filter: blur(22px) saturate(1.15);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+  font-family: 'DM Sans', Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-align: left;
+  animation: feedback-in 0.16s ease both;
+}
+.feedback-close {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #555;
+}
+.feedback-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+.feedback-close svg {
+  width: 16px;
+  height: 16px;
+}
+.feedback-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-right: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.feedback-title > svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: #278348;
+}
+.feedback-email {
+  margin: 10px 0 13px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.feedback-note {
+  margin: 0 0 14px;
+  color: #555;
+  font-size: 12px;
+}
+.feedback-actions {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  flex-wrap: wrap;
+}
+.feedback-actions a,
+.feedback-direct {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.feedback-actions a:not(.feedback-primary):hover,
+.feedback-direct:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.feedback-actions svg,
+.feedback-direct svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.feedback-primary {
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  padding: 10px 13px;
+}
+.feedback-primary:hover {
+  background: #303030;
+}
+.feedback-direct {
+  margin-top: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.center-panel .social-links > .email-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 500;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.email-copy:hover {
+  opacity: 0.55;
+}
+.email-copy[aria-expanded='true'] {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+@keyframes feedback-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 767px) {
+  .center-panel .social-links > .email-copy {
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-feedback {
+    animation: none;
+  }
+}

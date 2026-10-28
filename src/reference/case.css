@@ -1,0 +1,721 @@
+/* Project route geometry follows rY37MP56.js. Design units are 0.1rem. */
+.case-view {
+  --case-furniture-opacity: 1;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  color: #f5f5f5;
+  isolation: isolate;
+}
+.case-sheet {
+  position: fixed;
+  inset: 2rem 5rem;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  gap: 10rem;
+  padding: 4rem 12rem 0 4rem;
+  overflow: hidden;
+  border-radius: 2rem;
+  background: #080808;
+  outline: none;
+  pointer-events: auto;
+  touch-action: none;
+  transform-origin: center;
+  will-change: transform;
+}
+.case-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-height: calc(100% - 7rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  scrollbar-color: transparent transparent;
+  padding-right: 1rem;
+}
+.case-copy > * {
+  flex-shrink: 0;
+}
+.case-copy::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.case-copy::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+.case-copy h1 {
+  font-size: 4.5rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  margin: 0;
+  max-width: 100%;
+  text-wrap: balance;
+}
+.case-description {
+  max-width: 40rem;
+  font-size: 1.6rem;
+  line-height: 1.4;
+  letter-spacing: -0.035em;
+  margin: 2rem 0 0;
+}
+.case-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 2.5rem;
+  max-width: 100%;
+}
+.case-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2em;
+  padding: 0 1.25em;
+  border-radius: 999px;
+  background: #242424;
+  color: #f5f5f5;
+  font-size: 1.1rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+a.case-pill {
+  pointer-events: auto;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+a.case-pill:hover {
+  background: #f5f5f5;
+  color: #080808;
+}
+.case-pill-round {
+  aspect-ratio: 1;
+  width: 2em;
+  padding: 0;
+  background: #f5f5f5;
+  color: #080808;
+  margin-right: 0.8rem;
+}
+.case-pill-round svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  transition: transform 0.2s;
+}
+.case-pill-round:hover svg {
+  transform: translate(0.15rem, -0.15rem);
+}
+.case-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.6rem 2rem;
+  width: 100%;
+  margin: 2.8rem 0 0;
+  font-size: 1.3rem;
+  line-height: 1.45;
+  letter-spacing: -0.02em;
+}
+.case-facts .case-fact-role {
+  grid-column: 1/-1;
+}
+.case-facts dt,
+.case-breakdown h2 {
+  margin: 0 0 0.65rem;
+  color: #808080;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+.case-facts dd {
+  margin: 0;
+  color: #e0e0e0;
+}
+.case-breakdown {
+  margin-top: 2.6rem;
+  width: 100%;
+  max-width: 40rem;
+}
+.case-breakdown ul {
+  margin: 0;
+  padding-left: 1.3rem;
+  color: #c2c2c2;
+  font-size: 1.35rem;
+  line-height: 1.5;
+  letter-spacing: -0.02em;
+}
+.case-breakdown li + li {
+  margin-top: 0.65rem;
+}
+.case-breakdown li::marker {
+  font-size: 0.7em;
+  color: #737373;
+}
+.case-disclosure-body {
+  position: relative;
+  max-height: none;
+  overflow: visible;
+  font-size: 1.35rem;
+  line-height: 1.5;
+}
+.case-disclosure[data-collapsible='true'][data-expanded='false'] > .case-disclosure-body {
+  max-height: var(--case-disclosure-collapsed-height, 4.5em);
+  overflow: hidden;
+}
+.case-disclosure[data-collapsible='true'][data-expanded='false'] > .case-disclosure-body > ul {
+  /* Fade the ink before the clipping edge. Keep the mask independent of the
+     list's full height so every collapsed block dissolves at its third line. */
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(var(--case-disclosure-collapsed-height) - 1.6em),
+    rgba(0, 0, 0, 0.72) calc(var(--case-disclosure-collapsed-height) - 1em),
+    rgba(0, 0, 0, 0.18) calc(var(--case-disclosure-collapsed-height) - 0.4em),
+    transparent calc(var(--case-disclosure-collapsed-height) - 2px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(var(--case-disclosure-collapsed-height) - 1.6em),
+    rgba(0, 0, 0, 0.72) calc(var(--case-disclosure-collapsed-height) - 1em),
+    rgba(0, 0, 0, 0.18) calc(var(--case-disclosure-collapsed-height) - 0.4em),
+    transparent calc(var(--case-disclosure-collapsed-height) - 2px),
+    transparent 100%
+  );
+}
+.case-disclosure-body[role='button'] {
+  cursor: pointer;
+  outline: none;
+}
+.case-disclosure-body[role='button']:focus-visible {
+  outline: 1px solid #b7b7b7;
+  outline-offset: -1px;
+  border-radius: 0.3rem;
+}
+.case-disclosure-blur {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  display: none;
+  height: 2.25em;
+  pointer-events: none;
+  background: transparent;
+}
+.case-disclosure-blur::before,
+.case-disclosure-blur::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.case-disclosure-blur::before {
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  mask-image: linear-gradient(to bottom, transparent, #000 45%, #000 65%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 45%, #000 65%, transparent 100%);
+}
+.case-disclosure-blur::after {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 20%,
+    rgba(0, 0, 0, 0.5) 50%,
+    #000 70%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 20%,
+    rgba(0, 0, 0, 0.5) 50%,
+    #000 70%,
+    transparent 100%
+  );
+}
+.case-disclosure[data-collapsible='true'][data-expanded='false'] .case-disclosure-blur {
+  display: block;
+}
+.case-disclosure-toggle {
+  display: none;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  width: max-content;
+  min-height: 32px;
+  margin: 0.25rem 0 0;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 4px;
+  outline: none;
+  background: transparent;
+  color: #bdbdbd;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.case-disclosure[data-collapsible='true'] > .case-disclosure-toggle {
+  display: inline-flex;
+}
+.case-disclosure-toggle:hover {
+  color: #fff;
+}
+.case-disclosure-toggle svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.case-disclosure .case-disclosure-toggle:focus-visible {
+  outline: 2px solid #b7b7b7;
+  outline-offset: -2px;
+}
+.case-credits {
+  margin: 2.5rem 0 0;
+  padding-top: 1.6rem;
+  border-top: 1px solid #242424;
+  width: 100%;
+  max-width: 36rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  letter-spacing: -0.015em;
+  color: #a0a0a0;
+}
+.case-credits > div {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 0.7rem;
+}
+.case-credits dt,
+.case-credits dd {
+  margin: 0;
+}
+.case-credits dt {
+  color: #707070;
+}
+.case-credits .case-credit-note {
+  display: block;
+  margin-top: 1.2rem;
+  color: #777;
+}
+.case-stack {
+  display: flex;
+  width: 70rem;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rem;
+  padding-bottom: 0;
+  will-change: transform;
+}
+.case-media-item {
+  display: block;
+  flex: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  will-change: transform;
+  line-height: 0;
+  overflow: hidden;
+  border-radius: 0.15rem;
+  transform-origin: center;
+}
+.case-image {
+  cursor: zoom-in;
+  pointer-events: auto;
+  touch-action: none;
+}
+.case-media-item img,
+.case-media-item video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  object-fit: contain;
+  border: 0;
+  filter: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.case-media-item video {
+  background: #111;
+  pointer-events: auto;
+}
+.case-video {
+  position: relative;
+}
+.case-video > video,
+.case-video > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.case-video-poster {
+  pointer-events: none;
+}
+.case-video[data-video-ready='true'] > .case-video-poster {
+  visibility: hidden;
+}
+.case-media-group {
+  display: block;
+  flex: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.case-media-group-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0 0 2rem;
+}
+.case-media-group-copy h2 {
+  margin: 0;
+  color: #aaa;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+}
+.case-media-group-copy p {
+  margin: 0;
+  color: #808080;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: -0.015em;
+  max-width: 65ch;
+}
+.case-media-group-items {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  justify-items: center;
+  gap: 2rem;
+}
+.case-media-group[data-layout='mobile-pair'] > .case-media-group-items {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.case-media-group-items > .case-media-item {
+  min-width: 0;
+  max-width: 100%;
+}
+/* Raw mobile captures stay phone sized on desktop; the measured media box is
+   shared by the DOM fallback, video poster and GL refraction surface. */
+@media (min-width: 650px) {
+  .case-copy[data-copy-scroll='true']:has(.case-disclosure[data-expanded='true']) {
+    scrollbar-width: thin;
+    scrollbar-color: #3d3d3d transparent;
+  }
+  .case-copy[data-copy-scroll='true']:has(
+      .case-disclosure[data-expanded='true']
+    )::-webkit-scrollbar {
+    width: 3px;
+  }
+  .case-copy[data-copy-scroll='true']:has(
+      .case-disclosure[data-expanded='true']
+    )::-webkit-scrollbar-thumb {
+    background: #3d3d3d;
+  }
+  .case-media-item[data-presentation='mobile'] {
+    width: min(100%, 390px, calc((100dvh - 100px) * var(--case-mobile-aspect, 0.4620853)));
+  }
+}
+.case-fixed-furniture {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.case-close {
+  position: absolute;
+  top: 3rem;
+  right: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  color: #080808;
+  background: #f5f5f5;
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    background 0.2s,
+    transform 0.25s;
+}
+.case-close svg {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+.case-close:hover {
+  transform: rotate(90deg);
+  background: #d9d9d9;
+}
+.case-progress {
+  --progress-border: 2px;
+  position: absolute;
+  bottom: 3rem;
+  left: 3rem;
+  display: block;
+  width: 25px;
+  height: 25px;
+  min-width: 25px;
+  min-height: 25px;
+  border-radius: 50%;
+  pointer-events: none;
+  color: #fff;
+  background: #080808;
+  box-shadow: 0 0 0 4px #080808;
+}
+.case-progress-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform: rotate(-90deg);
+}
+.case-progress-track,
+.case-progress-arc {
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.case-progress-track {
+  opacity: 0.2;
+}
+.case-progress-arc {
+  stroke-linecap: butt;
+}
+.case-progress.gl-progress-ready:has(canvas) .case-progress-fallback {
+  visibility: hidden;
+}
+.case-furniture {
+  opacity: var(--case-furniture-opacity);
+}
+.case-related {
+  position: fixed;
+  inset: 10rem;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 2rem;
+  transform-origin: center;
+}
+.case-related-previous {
+  transform: translateX(calc((100% + 7.5rem) * -1));
+}
+.case-related-next {
+  transform: translateX(calc(100% + 7.5rem));
+}
+.case-related-surface {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  height: 100%;
+  padding: 0 1rem;
+  border-radius: inherit;
+  background: #080808;
+  color: #fff;
+  opacity: 0.3;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: opacity 0.25s;
+  transform-origin: center;
+  will-change: transform;
+}
+.case-related-next .case-related-surface {
+  justify-content: flex-start;
+}
+.case-related-surface svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+}
+.case-related-surface:hover {
+  opacity: 0.55;
+}
+.case-view[data-scrubbing='true'] {
+  cursor: grabbing;
+}
+.case-view[data-scrubbing='true'] .case-image {
+  cursor: grabbing;
+}
+.case-view[data-transition='opening'] .case-sheet,
+.case-view[data-transition='closing'] .case-sheet {
+  background: transparent;
+  pointer-events: none;
+}
+.case-view[data-transition='opening'] .case-furniture,
+.case-view[data-transition='closing'] .case-furniture {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+.case-view[data-transition='opening'] .case-related,
+.case-view[data-transition='closing'] .case-related {
+  visibility: hidden;
+  pointer-events: none;
+}
+.case-view[data-transition='settled'] .case-furniture {
+  transition: opacity 0.3s;
+}
+.case-view a:focus-visible,
+.case-view button:focus-visible {
+  outline: 2px solid #b7b7b7;
+  outline-offset: 0.5rem;
+}
+.case-copy:focus-visible {
+  outline: 1px solid #555;
+  outline-offset: 0.5rem;
+}
+
+@media (max-width: 649px) {
+  .case-sheet {
+    inset: 1.5rem 2rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4rem;
+    padding: 0 1rem;
+    border-radius: 1.5rem;
+  }
+  .case-copy {
+    flex: none;
+    padding: 4rem 1.5rem 0;
+    min-width: 0;
+    max-height: none;
+    overflow: visible;
+    scrollbar-width: none;
+  }
+  .case-copy h1 {
+    font-size: 3.5rem;
+    line-height: 1;
+    letter-spacing: -0.05em;
+  }
+  .case-description {
+    font-size: 1.4rem;
+    line-height: 1.4;
+    letter-spacing: -0.035em;
+    margin-top: 1.5rem;
+    max-width: 40rem;
+  }
+  .case-pills {
+    margin-top: 2.2rem;
+    gap: 0.6rem;
+  }
+  .case-pill {
+    font-size: 1rem;
+  }
+  .case-credits {
+    font-size: 1rem;
+    margin-top: 2rem;
+    max-width: 100%;
+  }
+  .case-credits > div {
+    grid-template-columns: 6rem minmax(0, 1fr);
+    margin-top: 0.5rem;
+  }
+  .case-facts {
+    font-size: 1.25rem;
+    margin-top: 2.6rem;
+    gap: 1.5rem 2rem;
+  }
+  .case-breakdown {
+    margin-top: 2.4rem;
+  }
+  .case-breakdown ul {
+    font-size: 1.3rem;
+  }
+  .case-disclosure-body {
+    font-size: 1.3rem;
+  }
+  .case-disclosure-toggle {
+    min-height: 44px;
+  }
+  .case-stack {
+    width: 100%;
+    gap: 3rem;
+    padding-bottom: 8rem;
+  }
+  .case-media-group-copy {
+    margin-bottom: 2rem;
+  }
+  .case-media-group[data-layout='mobile-pair'] > .case-media-group-items {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3rem;
+  }
+  .case-related {
+    inset: 10rem;
+    border-radius: 1.5rem;
+  }
+  .case-related-previous {
+    transform: translateX(calc((100% + 9rem) * -1));
+  }
+  .case-related-next {
+    transform: translateX(calc(100% + 9rem));
+  }
+  .case-related-surface {
+    padding: 0;
+  }
+  .case-related-surface svg {
+    display: none;
+  }
+  .case-close {
+    top: auto;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    width: 4rem;
+    height: 4rem;
+  }
+  .case-close svg {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+  .case-progress {
+    left: 1.5rem;
+    bottom: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .case-view[data-transition='settled'] .case-furniture,
+  .case-related-surface,
+  .case-close,
+  a.case-pill,
+  .case-pill-round svg {
+    transition: none;
+  }
+}
+/* The shared source sheet and image surfaces are drawn by the GL registry. */
+.gl-case-ready .case-sheet {
+  background: transparent;
+}
+.gl-case-ready .gl-media-ready {
+  visibility: hidden;
+}

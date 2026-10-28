@@ -1,0 +1,117 @@
+/* White index typography on the animated blue background. */
+.full-index {
+  color: #fff;
+  scrollbar-color: rgba(255, 255, 255, 0.45) transparent;
+}
+.full-index .index-heading,
+.full-index .index-heading h1,
+.full-index .index-heading > span,
+.full-index .case-group h2,
+.full-index .case-group h2 span,
+.full-index .case-group-projects button {
+  color: #fff;
+}
+.full-index .case-group h2 svg {
+  color: inherit;
+}
+.full-index .case-group {
+  border-top-color: rgba(255, 255, 255, 0.45);
+}
+.full-index .case-group:last-child {
+  border-bottom-color: rgba(255, 255, 255, 0.45);
+}
+.full-index button:focus-visible {
+  outline-color: #fff;
+}
+.full-index::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+/* Each archive title is an individual target, including on touch screens. */
+.full-index .case-group-projects {
+  gap: 9px;
+  align-items: center;
+}
+.full-index .case-group h2 {
+  align-self: center;
+  padding-top: 0;
+}
+.full-index .case-group-projects .case-link {
+  --case-fill: rgba(255, 255, 255, 0.1);
+  --case-stroke: transparent;
+  --case-radius: 999px;
+  --case-opacity: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 9px;
+  padding: 10px 16px;
+  min-height: 42px;
+  border: 0;
+  border-radius: var(--case-radius);
+  background: var(--case-fill);
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  opacity: 1;
+  animation-name: case-link-in;
+  transition: background 0.18s;
+}
+.full-index .case-link-label {
+  min-width: 0;
+}
+.full-index:has(button:hover) .case-group-projects .case-link:not(:hover) {
+  opacity: 1;
+}
+.full-index .case-group-projects .case-link[data-filter-match='false'],
+.full-index:has(button:hover)
+  .case-group-projects
+  .case-link[data-filter-match='false']:not(:hover) {
+  --case-opacity: 0.72;
+  opacity: 0.72;
+}
+.full-index .case-link svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+.full-index .case-group-projects .case-link[data-filter-match='true'] {
+  --case-fill: rgba(255, 255, 255, 0.22);
+}
+.full-index .case-group-projects .case-link:hover,
+.full-index .case-group-projects .case-link:focus-visible {
+  --case-fill: rgba(255, 255, 255, 0.24);
+}
+.full-index .case-group-projects .case-link:focus-visible {
+  --case-fill: rgba(255, 255, 255, 0.36);
+  outline: none;
+}
+/* The scene draws the whole chip so its fill follows the text refraction. */
+.full-index .case-group-projects .case-link.gl-text-ready {
+  background: transparent;
+  border-color: transparent;
+}
+.full-index .case-link.gl-text-ready svg {
+  opacity: 0;
+}
+@keyframes case-link-in {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: var(--case-opacity);
+    transform: none;
+  }
+}
+@media (max-width: 767px) {
+  .full-index .case-group-projects .case-link {
+    font-size: 17px;
+    min-height: 44px;
+  }
+  .full-index .case-group-projects {
+    gap: 8px;
+  }
+}
