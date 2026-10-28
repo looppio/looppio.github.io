@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "repository": "looppio/looppio.github.io",
   "sourceBranch": "main",
-  "sourceCommit": "60657afaf4dea8c989b522bf9c0ca7755e8fb2cb",
+  "sourceCommit": "81f7dd5b737ff48c2125eac775e2a781f04a1e96",
   "sourceDirty": false,
   "version": "1.2.0",
-  "customDomain": "alextish.com",
+  "customDomain": null,
   "routeCount": 20,
-  "artifactSha256": "f75b1f0a276bca525fd2f73cbc8211e7aedea0ad4e24505d4286985f24af4960"
+  "artifactSha256": "e6afdcb6827ccef2861ffed2147cbab49268d17a777940ae3c22ae98dad532e1"
 }
