@@ -2,14 +2,14 @@
 
 ## Current setup
 
-| Item             | State                                                                                     |
-| ---------------- | ----------------------------------------------------------------------------------------- |
-| Canonical source | [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io), `main`         |
-| Published files  | `gh-pages`, root directory                                                                |
-| Pages address    | [looppio.github.io](https://looppio.github.io/), redirects to configured domain           |
-| Custom domain    | `alextish.com` configured; public DNS resolves; GitHub verification/HTTPS pending         |
-| Domain config    | `pages.config.json` has `customDomain: "alextish.com"`; nameservers changed to Cloudflare |
-| Validation       | Local `npm run check`; the CI example is inactive                                         |
+| Item             | State                                                                               |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| Canonical source | [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io), `main`   |
+| Published files  | `gh-pages`, root directory                                                          |
+| Pages address    | [looppio.github.io](https://looppio.github.io/), redirects to configured domain     |
+| Custom domain    | `alextish.com` configured; GitHub DNS resolution and HTTPS still pending            |
+| Domain config    | `pages.config.json` has `customDomain: "alextish.com"`; Cloudflare Free zone ACTIVE |
+| Validation       | Local `npm run check`; the CI example is inactive                                   |
 
 GitHub Pages is available for public repositories on GitHub Free. This portfolio needs no paid server or database. Domain registration and renewal remain separate. Current Pages limits include a 1 GB published site and a soft 100 GB monthly bandwidth allowance; check these again as media or traffic grows. [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
 
@@ -21,7 +21,7 @@ Use Node.js 24 from `.nvmrc`, npm, Git and ordinary repository-write authenticat
 
 Repository Settings → Pages must use **Deploy from a branch**, **gh-pages**, **/ (root)**. The YAML in `docs/ci-check.example.yml` is documentation only, not active CI. GitHub's deployment status does not replace the project's checks.
 
-`pages.config.json` records the repository, source and publishing branches, and custom domain. The current configuration uses `customDomain: "alextish.com"`. The release CNAME is deployed and public DNS has the GitHub records. GitHub domain verification and HTTPS must still finish before the domain is announced as live. The default Pages hostname redirects to the custom domain during this transition; it is not a working fallback if a resolver still has the old DNS state. Do not change it merely to label a local preview.
+`pages.config.json` records the repository, source and publishing branches, and custom domain. The current configuration uses `customDomain: "alextish.com"`. The release CNAME is deployed, Cloudflare is active and public resolvers return the GitHub records. GitHub's own DNS check still fails; ownership confirmation and HTTPS must finish before the domain is announced as fully ready. The default Pages hostname redirects to the custom domain during this transition; it is not an independent fallback. Do not change it merely to label a local preview.
 
 ## Preview a candidate
 
@@ -100,11 +100,17 @@ Replace `BAD_SOURCE_COMMIT` with the reviewed commit. For several commits or a m
 
 ## Connect alextish.com
 
-**Status: prepared, pending.** These steps are a runbook, not evidence that DNS or HTTPS is already configured. Use `alextish.com` as canonical and redirect `www.alextish.com` to it. Domain registration stays with Vicetemple. Cloudflare Free has been selected for DNS in the existing account. The website records have been imported in DNS-only mode; nameserver activation and public verification remain pending.
+**Status at 28 October 2026, 22:26 Kyiv: Cloudflare active; GitHub DNS resolution and HTTPS pending.** Domain registration stays with Vicetemple. Cloudflare Free reports the zone as **ACTIVE**, with **DNS Setup: Full**; website records remain DNS-only. Registry delegation is correct; Google, Cloudflare and Quad9 resolvers return the expected DNS records. The ownership TXT record exactly matches GitHub's supplied value, which is intentionally not reproduced here. Cloudflare nameserver activation is complete.
+
+GitHub's completed domain health check at 22:23 Kyiv still reported `dns_resolves: false`, `InvalidDNSError` and `caa_error: Dnsruby::ServFail` for both the apex and `www`. Its certificate state was `new`, and **Enforce HTTPS** was off. Correct answers from public resolvers do not establish that GitHub's resolver or certificate provisioning has recovered.
+
+One remove-and-readd of the repository's custom-domain setting has already been performed to restart the Pages domain setup. [Pages run 40762668588](https://github.com/looppio/looppio.github.io/actions/runs/40762668588) succeeded with deployment commit `6d8bd81e2b92173102a7d8ff52fe17072c6a43a6`. The runtime remains v1.2.0 from source `60657afaf4dea8c989b522bf9c0ca7755e8fb2cb`; that successful deployment does not confirm DNS health or HTTPS readiness. Keep `alextish.com` canonical and retain the existing DNS records while retrying verification.
+
+### Recorded configuration
 
 1. In the `looppio` account's Pages settings, verify ownership using GitHub's supplied TXT record. Retain that record. Its value must come from GitHub. [Domain verification](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages)
-2. Prepare `customDomain: "alextish.com"` in `pages.config.json`, review, commit and push it. Set the repository's Pages custom domain before pointing web DNS at Pages. Saving that setting may add a `CNAME` commit on `gh-pages`; preserve it.
-3. In Cloudflare DNS, use the records below in DNS-only mode. In Vicetemple, enter the exact nameserver pair assigned to this zone by Cloudflare; do not reuse another zone’s pair. Confirm delegation before relying on a saved record in the dashboard. Preserve unrelated records, especially email records. Avoid wildcard records.
+2. Keep `customDomain: "alextish.com"` in `pages.config.json` aligned with the repository's Pages custom domain. Saving the Pages setting may add a `CNAME` commit on `gh-pages`; preserve it.
+3. Retain the records below in Cloudflare DNS-only mode and the assigned Cloudflare nameserver pair at Vicetemple. Delegation is already confirmed; no nameserver change is pending. Preserve unrelated records, especially email records. Avoid wildcard records.
 
    | Type  | Name  | Value               |
    | ----- | ----- | ------------------- |
@@ -123,7 +129,12 @@ Replace `BAD_SOURCE_COMMIT` with the reviewed commit. For several commits or a m
    npm run deploy:pages -- --publish --allow-domain-change
    ```
 
-5. Verify DNS, enable **Enforce HTTPS** when GitHub allows it, and check the apex plus `www` redirect. DNS/certificate availability can take up to 24 hours. [GitHub custom-domain setup](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
+### Retry verification and finish HTTPS
+
+1. Confirm the domain's ownership status in the GitHub account's Pages settings. A matching published TXT record is required, but is not itself proof that GitHub has marked ownership verified. Retain the supplied DNS record without duplicating its value in this repository.
+2. Retry the repository Pages DNS check after allowing resolver propagation. Record the completed result for the apex and `www`; the last result above remains a failure. The custom-domain reset has already been attempted once, so do not repeat it as a routine retry. Wait for GitHub DNS resolution to pass and its certificate to become eligible for HTTPS. [GitHub custom-domain setup](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
+3. Enable **Enforce HTTPS** when GitHub allows it. Confirm valid certificates with ordinary DNS and TLS verification for both `alextish.com` and `www.alextish.com`, with no `--resolve` override or certificate bypass. Check the HTTP-to-HTTPS redirects, the `www`-to-apex redirect and the Pages-hostname redirect.
+4. Repeat the live checks through normal DNS and HTTPS: root, `/full/`, every case route including a direct reload with filter parameters, all five PDF downloads, a missing path returning 404, and a video byte-range request returning 206. Compare `release-source.json` with the intended source SHA and record the timestamp and results before declaring HTTPS ready. Earlier HTTP checks with a DNS override do not provide this proof.
 
 Useful read-only checks:
 

@@ -4,7 +4,7 @@ A React and Three.js portfolio with an animated sky, WebGL gallery, category fil
 
 - **Pages address:** [looppio.github.io](https://looppio.github.io/) (redirects to the configured custom domain)
 - **Source:** [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io), branch `main`
-- **Custom domain:** `alextish.com`. GitHub Pages and Cloudflare Free DNS are configured; public DNS records resolve correctly, while GitHub verification and HTTPS issuance are still pending. The Pages address redirects to this domain, so it is not an independent fallback during propagation. Registration stays at Vicetemple.
+- **Custom domain:** `alextish.com`. As of 28 October 2026, 22:26 Kyiv, Cloudflare Free is active and public DNS records resolve correctly. GitHub's own DNS check still fails and HTTPS issuance remains pending; HTTPS is not enabled. Account ownership verification still needs confirmation. The Pages address redirects to this domain, so it is not an independent fallback. Registration stays at Vicetemple. See the [current domain status and retry steps](docs/DEPLOYMENT.md#connect-alextishcom).
 
 The current repository is the canonical project. The Downloads handoff is a dated snapshot, not a synchronized working copy. Keep private collection material and archives outside this repository.
 
