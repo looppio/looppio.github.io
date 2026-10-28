@@ -127,7 +127,6 @@ export default function Gallery({
               onClick={(e) => engine.current?.activate(p, e)}
             >
               <img
-                src={p.cover}
                 alt=""
                 width={p.coverWidth}
                 height={p.coverHeight}

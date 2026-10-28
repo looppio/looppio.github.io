@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "repository": "looppio/looppio.github.io",
+  "sourceBranch": "main",
+  "publishBranch": "gh-pages",
+  "customDomain": "alextish.com"
+}

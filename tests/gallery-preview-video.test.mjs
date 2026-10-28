@@ -262,3 +262,18 @@ test('late play resolution cannot restart an offscreen preview', async () => {
   assert.equal(v.paused, true);
   f.dispose();
 });
+
+test('a preview that becomes decoded offscreen defers its GPU texture until visible again', () => {
+  const f = fixture();
+  f.scene.syncPreviewVideos();
+  const video = f.created[0];
+  f.card.el._vrect = { left: 1400, top: 100, width: 600, height: 430, right: 2000, bottom: 530 };
+  Object.assign(video, { readyState: 2, videoWidth: 1920, videoHeight: 1280 });
+  f.scene.syncPreviewVideos();
+  assert.equal(video.paused, true);
+  assert.equal(f.scene.previewVideos.get('movie').texture, undefined);
+  f.card.el._vrect = { left: 100, top: 100, width: 600, height: 430, right: 700, bottom: 530 };
+  f.scene.syncPreviewVideos();
+  assert.equal(f.scene.previewVideos.get('movie').texture.isVideoTexture, true);
+  f.dispose();
+});

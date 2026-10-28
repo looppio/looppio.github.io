@@ -21,6 +21,7 @@ This is a client-rendered React application built by Vite. There is no React Rou
 | `src/BootLoader.jsx`, `boot-loader.css`, `src/reference/BootReveal.js`                         | First-load readiness, progress and the real scene entrance.                                      |
 | `src/ActionFeedback.jsx` and `action-feedback.css`                                             | Email-copy and CV-download feedback.                                                             |
 | `src/CVPicker.jsx` and `src/cvVariants.js`                                                     | CV selection in the shared lens, approved PDF paths and individual download filenames.           |
+| `src/reference/coverImages.js` and `renderBudget.js`                                           | Shared cover decoding, selection loading, mobile resolution budget and frame scheduling.         |
 | `src/reference/AnimatedSky.js`                                                                 | Cloud video texture, poster and playback policy.                                                 |
 | `scripts/check-*.mjs`                                                                          | Asset and production-output validation used by the project checks.                               |
 
@@ -51,15 +52,23 @@ Content-module refreshes reconstruct the scene with the current case, phase, ove
 
 The first-load controller tracks real font, sky-poster, cover or fallback readiness and a successful scene frame. It does not reach 100 percent on a timer. Boot state survives hot module replacement but restarts on a full page reload.
 
+Gallery cards start without fetching every cover. The scene requests covers for the current selection and reuses each decoded DOM image in its Three.js texture, avoiding a separate texture-loader request for the same cover. Hidden cases load when selected or otherwise needed. The startup barrier rechecks selection changes, waits for font readiness and uploads required cover textures before reveal. Postprocess shaders are prepared before the reveal as well. Keep the loading and teardown guards when changing this path.
+
 At release, measured loading strips hand off to existing scene planes. The gallery entrance, direct-case entrance and archive-text reveal have separate paths. Retired planes must be hidden and restored to their normal poses so later frames cannot resurrect a center dot.
 
 About, Contact, CV selection and category filters share the source lens. Their DOM content stays hidden until the lens encloses it and two correctly sized rendered frames agree. Resizing or switching an overlay invalidates this readiness. Both archive DOM and GPU labels stay hidden beneath a lens panel.
+
+## Rendering budget
+
+`renderBudget.js` selects the mobile budget for widths up to 767 CSS pixels or a coarse pointer. Main-scene DPR is capped at 1.5 and further limited to approximately one million render pixels; desktop DPR remains capped at 2. The mobile main renderer disables antialiasing and its lens render target does not allocate the extra depth buffer. Mobile frame scheduling targets 60 frames/s with a running deadline, preserving elapsed animation time across skipped callbacks. These are work budgets, not measured speed guarantees.
+
+When the lens is closed and the pointer effect is inactive, postprocessing uses a simple copy material instead of evaluating the lens shader. The full effect remains available for interaction. Card hit polygons are cached against geometry and deformation state, so unchanged cards do not rebuild the same projected polygon every frame. Hidden tabs still stop the scene loop and media playback.
 
 ## Case media and scrolling
 
 Case scrolling is virtual. A group is one top-level scroll item, while its image and video children remain individual measured surfaces. Each rendered leaf has a unique `data-case-slot` derived from its original or repeated render key and child index. The mesh registry includes that slot so repeated sources do not collide.
 
-The `_parked` state can live on an ancestor group. Visibility, playback and focus calculations must account for it. Focusing a child in a tall group first restores the group's virtual position, then brings that child into view. Repeated loop copies are excluded from accessibility navigation and tab order.
+The `_parked` state can live on an ancestor group. Visibility, playback and focus calculations must account for it. Parked case media pause playback and skip bounding-box measurement until they become active. Focusing a child in a tall group first restores the group's virtual position, then brings that child into view. Repeated loop copies are excluded from accessibility navigation and tab order.
 
 Videos reserve their dimensions and retain a poster until a decoded frame and positive intrinsic dimensions exist. Playback pauses offscreen, on hidden tabs and for reduced motion. Errors retain a usable poster. Case exit clears sources and renderer resources. Preserve these rules for grouped and ordinary media alike.
 

@@ -139,7 +139,7 @@ Each available option is a single download link covering the entire rounded row.
 
 Everything under `public/` is copied into the client output, even when no code references it. An unlinked or non-featured case is still public content. A filename, query string or hidden source field can disclose identity just as a visible logo can.
 
-- Keep NDA originals, capture sessions, raw video, manifests, source URLs, hashes, evidence and collaborator attribution outside this project and the future repository.
+- Keep NDA originals, capture sessions, raw video, manifests, source URLs, hashes, evidence and collaborator attribution outside this project and its public repository.
 - Use only approved sanitized assets for Private card platform. Do not include its original product URL, client name, raw branding or identifying account data in public copy, paths or screenshots.
 - Redact every frame before publishing a restricted video. A blurred poster does not sanitize the underlying clip.
 - Do not include studio credit slides, collaborator lists, thank-you end cards or like/subscribe promotional cards. Preserve legitimate product branding where permitted.

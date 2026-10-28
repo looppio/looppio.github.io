@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { preparePagesBuild } from '../scripts/prepare-pages-build.mjs';
 import { readRoute } from '../src/portfolioRoutes.js';
 import { projects } from '../src/projects.js';
+
+const testRelease = {
+  source: { sourceBranch: 'main', sourceCommit: 'a'.repeat(40), sourceDirty: false },
+  version: '1.0.0',
+};
 
 test('direct Pages directory URLs resolve to the same gallery and cases as client links', () => {
   assert.equal(readRoute('/full/', projects).view, 'full');
@@ -23,9 +28,11 @@ test('Pages packaging emits an entry for every case without a catch-all 404 page
   const client = await mkdtemp(join(tmpdir(), 'portfolio-pages-'));
   t.after(() => rm(client, { recursive: true, force: true }));
   const html = '<!doctype html><script type="module" src="/assets/app.js"></script>';
+  await mkdir(join(client, 'assets'));
+  await writeFile(join(client, 'assets/app.js'), 'console.log("fixture");');
   await writeFile(join(client, 'index.html'), html);
 
-  await preparePagesBuild(client);
+  await preparePagesBuild(client, projects, testRelease);
 
   const routes = ['full', ...projects.map((project) => `projects/${project.slug}`)];
   for (const route of routes) {

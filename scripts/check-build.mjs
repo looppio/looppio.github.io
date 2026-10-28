@@ -40,7 +40,7 @@ if (!errors.length) {
     const name = relative(client, path);
     if (
       /(?:^|\/)(?:node_modules|src|qa|work|\.git|\.env[^/]*|\.DS_Store)(?:\/|$)/.test(name) ||
-      /(?:source\.json|\.map|\.md)$/.test(name)
+      (/(?:source\.json|\.map|\.md)$/.test(name) && name !== 'release-source.json')
     ) {
       errors.push(`Development or provenance file leaked into build: ${name}`);
     }

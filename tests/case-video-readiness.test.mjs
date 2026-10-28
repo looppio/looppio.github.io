@@ -294,3 +294,41 @@ test('policy listeners pause immediately and are all removed on teardown', () =>
   assert.equal(motionListeners.size, 0);
   f.dispose();
 });
+
+test('parked media never forces a DOM measurement and offscreen decoded video waits for GPU creation', () => {
+  const f = fixture();
+  f.item._parked = true;
+  const measure = f.item.getBoundingClientRect;
+  f.item.getBoundingClientRect = () => assert.fail('parked media must not force layout');
+  f.scene.syncCase();
+  assert.equal(f.scene.caseMedia.size, 0);
+  f.item._parked = false;
+  f.item.getBoundingClientRect = measure;
+  f.item.box = rect(600, 800, 600, 337.5);
+  f.ready();
+  assert.equal(
+    f.entry().texture,
+    undefined,
+    'decoded pixels outside the sheet do not allocate a video texture',
+  );
+  f.item.box = rect(600, 90, 600, 337.5);
+  f.scene.syncCase();
+  assert.equal(f.entry().texture.isVideoTexture, true);
+  f.dispose();
+});
+
+test('WebKit without requestVideoFrameCallback retains the library decoded-frame update fallback', () => {
+  const f = fixture();
+  f.video.HAVE_CURRENT_DATA = 2;
+  f.ready();
+  assert.equal('requestVideoFrameCallback' in f.video, false);
+  const texture = f.entry().texture,
+    version = texture.version;
+  texture.update();
+  assert.ok(texture.version > version);
+  f.video.readyState = 1;
+  const beforeMetadataOnly = texture.version;
+  texture.update();
+  assert.equal(texture.version, beforeMetadataOnly);
+  f.dispose();
+});

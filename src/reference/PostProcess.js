@@ -23,14 +23,14 @@ import {
  * Opening/closing .85/.65s and the reference easing belong to the caller.
  */
 export class LensPass {
-  constructor(renderer, { backdrop = 0xffffff } = {}) {
+  constructor(renderer, { backdrop = 0xffffff, depthBuffer = true } = {}) {
     this.renderer = renderer;
     this.width = this.height = this.dpr = 1;
     this.target = new THREE.WebGLRenderTarget(1, 1, {
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
       colorSpace: THREE.NoColorSpace,
-      depthBuffer: true,
+      depthBuffer,
       stencilBuffer: false,
     });
     this.empty = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
@@ -68,6 +68,16 @@ export class LensPass {
       },
     });
     this.u = this.uniforms = this.material.uniforms;
+    // The source shader returns an opaque, unchanged scene when both fields
+    // are zero. Use that exact result without running its inactive lens math.
+    this.copyMaterial = new THREE.ShaderMaterial({
+      vertexShader: LENS_VERTEX,
+      fragmentShader:
+        'uniform sampler2D u_scene;varying vec2 vUv;void main(){gl_FragColor=vec4(texture2D(u_scene,vUv).rgb,1.0);}',
+      uniforms: { u_scene: this.u.u_scene },
+      depthTest: false,
+      depthWrite: false,
+    });
     this.quad = new THREE.Mesh(this.geometry, this.material);
     this.quad.frustumCulled = false;
     this.scene.add(this.quad);
@@ -190,6 +200,7 @@ export class LensPass {
     this.u.u_radius.value = radius;
     this.u.u_squash.value = squash;
     this.u.u_ballA.value = ball;
+    this.quad.material = progress <= 0 && ball <= 0.001 ? this.copyMaterial : this.material;
     if (backdrop !== undefined) this.u.u_backdrop.value.set(backdrop);
     const autoClear = this.renderer.autoClear;
     this.renderer.autoClear = false;
@@ -208,6 +219,7 @@ export class LensPass {
     this.target.dispose();
     this.trail.forEach((target) => target.dispose());
     this.material.dispose();
+    this.copyMaterial.dispose();
     this.trailMaterial.dispose();
     this.geometry.dispose();
     this.empty.dispose();

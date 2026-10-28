@@ -6,6 +6,8 @@ import PointerTrail from './PointerTrail.js';
 import FullField from './FullField.js';
 import AnimatedSky from './AnimatedSky.js';
 import BootReveal from './BootReveal.js';
+import { loadDecodedCover } from './coverImages.js';
+import { renderBudget, frameDue } from './renderBudget.js';
 import { createVirtualScroll } from './scroll.js';
 import { sourceEase, clamp, mix, deformPoint, smooth } from './motion.js';
 
@@ -60,15 +62,17 @@ export default class PortfolioScene {
   }
   async start() {
     this.bootLoaded = 0;
-    this.bootTotal = this.projects.length + 3;
+    this.bootTotal = this.requiredCoverIds().size + 3;
     this.bootReady = false;
     this.callbacks.onBootProgress?.({
       loaded: 0,
       total: this.bootTotal,
       phase: 'Loading portfolio',
     });
+    this.quality = this.renderBudget();
+    this.frameClock = {};
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: this.quality.antialias,
       alpha: true,
       powerPreference: 'high-performance',
     });
@@ -82,14 +86,20 @@ export default class PortfolioScene {
     this.camera.position.z = 41.18;
     this.camera.updateMatrixWorld();
     this.geo = new THREE.PlaneGeometry(1, 1, 24, 24);
-    this.post = new LensPass(this.renderer);
+    this.post = new LensPass(this.renderer, { depthBuffer: !this.quality.mobile });
     this.wipe = new PageWipe(this.renderer);
     this.pointerTrail = new PointerTrail(this.post, () => ({
       width: this.width,
       height: this.height,
       mouse: matchMedia('(hover: hover) and (pointer: fine)').matches,
     }));
-    const loader = new THREE.TextureLoader();
+    this.createCards();
+    // Start the selected covers alongside the sky and fonts. The DOM image is
+    // also the texture source, so an uncached visit fetches each cover once.
+    const covers = this.loadRequiredCovers();
+    // Prewarm after starting requests, before the reveal. Avoid compileAsync's
+    // uncancellable polling against materials that HMR may already dispose.
+    this.renderer.compile(this.post.scene, this.post.camera);
     this.background = new AnimatedSky(this.scene, this.host);
     await this.background.start();
     if (this.destroyed) return;
@@ -97,54 +107,8 @@ export default class PortfolioScene {
     await document.fonts.ready;
     if (this.destroyed) return;
     this.bootStep('Loading projects');
-    await Promise.all(
-      this.projects.map(async (p, i) => {
-        const tex = await loader.loadAsync(p.cover).catch(() => {
-          const blank = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
-          blank.needsUpdate = true;
-          blank.userData.loadFailed = true;
-          return blank;
-        });
-        if (this.destroyed) {
-          tex.dispose();
-          return;
-        }
-        // Reference textures are sampled directly without a second output transfer.
-        tex.colorSpace = THREE.NoColorSpace;
-        tex.minFilter = THREE.LinearFilter;
-        tex.magFilter = THREE.LinearFilter;
-        tex.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
-        const el = this.track.children[i];
-        el.style.setProperty(
-          '--aspect',
-          (p.coverWidth || tex.image.width) / (p.coverHeight || tex.image.height),
-        );
-        if (tex.userData.loadFailed) el.dataset.preview = 'unavailable';
-        const material = createCardMaterial(tex, tex.image.width, tex.image.height);
-        material.uniforms.u_backdrop?.value.setRGB(0.059, 0.059, 0.059);
-        material.uniforms.u_dent.value = 0.1;
-        const mesh = new THREE.Mesh(this.geo, material);
-        mesh.frustumCulled = false;
-        mesh.renderOrder = 10;
-        mesh.layers.enable(1);
-        this.scene.add(mesh);
-        const label = this.makeLabel(p);
-        label.mesh.layers.enable(1);
-        this.scene.add(label.mesh);
-        const hit = document.createElement('button');
-        hit.className = 'gallery-hitarea';
-        hit.setAttribute('aria-label', `Open ${p.title}`);
-        hit.tabIndex = -1;
-        this.host.append(hit);
-        const entry = { p, el, mesh, tex, label, hit, aspect: tex.image.width / tex.image.height };
-        this.cards[i] = entry;
-        this.registry.set(p.id, entry);
-        hit.onclick = (e) => this.activate(p, e);
-        hit.onpointerenter = () => (entry.hover = true);
-        hit.onpointerleave = () => (entry.hover = false);
-        this.bootStep('Loading projects');
-      }),
-    );
+    await covers;
+    await this.loadRequiredCovers();
     if (this.destroyed) return;
     this.resize();
     this.createScroll();
@@ -189,6 +153,91 @@ export default class PortfolioScene {
     this.scene.add(this.veil);
     this.startRenderLoop();
   }
+  requiredCoverIds() {
+    const ids = new Set(this.visibleIds);
+    if (this.state.project?.id) ids.add(this.state.project.id);
+    return ids;
+  }
+  createCards() {
+    this.projects.forEach((p, i) => {
+      const tex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1),
+        width = p.coverWidth || 1,
+        height = p.coverHeight || 1,
+        el = this.track.children[i];
+      tex.needsUpdate = true;
+      el.style.setProperty('--aspect', width / height);
+      const material = createCardMaterial(tex, width, height);
+      material.uniforms.u_backdrop?.value.setRGB(0.059, 0.059, 0.059);
+      material.uniforms.u_dent.value = 0.1;
+      const mesh = new THREE.Mesh(this.geo, material);
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 10;
+      mesh.layers.enable(1);
+      mesh.visible = false;
+      this.scene.add(mesh);
+      const label = this.makeLabel(p);
+      label.mesh.layers.enable(1);
+      label.mesh.visible = false;
+      this.scene.add(label.mesh);
+      const hit = document.createElement('button');
+      hit.className = 'gallery-hitarea';
+      hit.setAttribute('aria-label', `Open ${p.title}`);
+      hit.tabIndex = -1;
+      this.host.append(hit);
+      const card = { p, el, mesh, tex, label, hit, aspect: width / height, coverReady: false };
+      this.cards[i] = card;
+      this.registry.set(p.id, card);
+      hit.onclick = (event) => this.activate(p, event);
+      hit.onpointerenter = () => (card.hover = true);
+      hit.onpointerleave = () => (card.hover = false);
+    });
+  }
+  ensureCover(card) {
+    if (!card || this.destroyed || card.coverReady) return Promise.resolve(card);
+    if (card.coverPromise) return card.coverPromise;
+    card.coverPromise = (async () => {
+      let texture;
+      try {
+        const image = await loadDecodedCover(card.el.querySelector('img'), card.p.cover);
+        if (this.destroyed) return;
+        texture = new THREE.Texture(image);
+        // Preserve the reference's direct color sampling. Decode and upload
+        // before the reveal, rather than doing the first upload in its RAF.
+        texture.colorSpace = THREE.NoColorSpace;
+        texture.minFilter = texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+        texture.needsUpdate = true;
+        this.renderer.initTexture(texture);
+        card.tex.dispose();
+        card.tex = texture;
+        card.aspect = image.naturalWidth / image.naturalHeight;
+        card.el.style.setProperty('--aspect', card.aspect);
+        card.mesh.material.uniforms.u_texture.value = texture;
+        card.mesh.material.uniforms.u_size.value.set(image.naturalWidth, image.naturalHeight);
+        delete card.el.dataset.preview;
+      } catch {
+        texture?.dispose();
+        if (this.destroyed) return;
+        card.tex.userData.loadFailed = true;
+        card.el.dataset.preview = 'unavailable';
+      }
+      card.coverReady = true;
+      this.bootStep('Loading projects');
+      if (this.scroll) this.measure();
+      return card;
+    })();
+    return card.coverPromise;
+  }
+  async loadRequiredCovers() {
+    // State can change during asynchronous startup (Back or content HMR).
+    // Recheck before readiness; filtered-out cards never join the boot barrier.
+    while (!this.destroyed) {
+      const ids = this.requiredCoverIds(),
+        pending = this.cards.filter((card) => ids.has(card.p.id) && !card.coverReady);
+      if (!pending.length) return;
+      await Promise.all(pending.map((card) => this.ensureCover(card)));
+    }
+  }
   // Keep animation time local to visible frames. A background tab must not
   // accumulate an enormous virtual-scroll ratio or fast-forward a lens flight.
   startRenderLoop() {
@@ -203,6 +252,10 @@ export default class PortfolioScene {
         this.last = 0;
         return;
       }
+      if (!frameDue((this.frameClock ??= {}), t, this.quality?.fps)) {
+        this.requestFrame();
+        return;
+      }
       try {
         this.tick(t);
       } catch (error) {
@@ -213,6 +266,7 @@ export default class PortfolioScene {
     this.onFrame = onFrame;
     this.onRenderVisibility = () => {
       this.last = 0;
+      this.frameClock = {};
       if (doc.hidden) {
         if (this.raf != null) cancelAnimationFrame(this.raf);
         this.raf = null;
@@ -229,6 +283,7 @@ export default class PortfolioScene {
     if (this.raf != null) cancelAnimationFrame(this.raf);
     this.raf = null;
     this.last = 0;
+    this.frameClock = {};
     this.renderDocument?.removeEventListener('visibilitychange', this.onRenderVisibility);
     this.renderDocument = null;
     this.onRenderVisibility = null;
@@ -284,12 +339,21 @@ export default class PortfolioScene {
       else this.scroll.center(0);
     }
   }
+  renderBudget() {
+    return renderBudget({
+      width: document.documentElement.clientWidth,
+      height: document.documentElement.clientHeight,
+      devicePixelRatio: window.devicePixelRatio,
+      coarsePointer: matchMedia('(pointer: coarse)').matches,
+    });
+  }
   resize() {
     this.invalidateLensReady();
     this.width = document.documentElement.clientWidth;
     this.height = document.documentElement.clientHeight;
     this.small = this.width <= 649;
-    this.dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.quality = this.renderBudget();
+    this.dpr = this.quality.dpr;
     this.renderer.setPixelRatio(this.dpr);
     this.renderer.setSize(this.width, this.height);
     this.camera.aspect = this.width / this.height;
@@ -326,6 +390,7 @@ export default class PortfolioScene {
       if (this.state.project?.id !== card.p.id && this.flight?.card !== card)
         card.mesh.visible = false;
     }
+    void this.loadRequiredCovers();
     this.measure();
     if (next.size > 1) this.scroll?.center(0);
   }
@@ -359,6 +424,7 @@ export default class PortfolioScene {
   setState(next) {
     const prev = this.state;
     this.state = { ...prev, ...next };
+    if (this.state.project) void this.ensureCover(this.registry.get(this.state.project.id));
     if (prev.mode !== this.state.mode && this.post && !this.state.project) {
       this.wipe.capture(this.post.target.texture);
       this.wipe.start();
@@ -682,8 +748,9 @@ export default class PortfolioScene {
     };
   }
   resizeLabel(label, width, height, rem) {
-    const pixelW = Math.max(1, Math.round(width * 2)),
-      pixelH = Math.max(1, Math.round(height * 2));
+    const dpr = Math.min(2, this.dpr || 2),
+      pixelW = Math.max(1, Math.round(width * dpr)),
+      pixelH = Math.max(1, Math.round(height * dpr));
     if (label.width === pixelW && label.height === pixelH && label.rem === rem) return;
     label.tex.dispose();
     const c = label.canvas;
@@ -693,7 +760,7 @@ export default class PortfolioScene {
     label.height = pixelH;
     label.rem = rem;
     const ctx = c.getContext('2d');
-    ctx.scale(2, 2);
+    ctx.scale(dpr, dpr);
     const pad = 2 * rem,
       radius = 1.25 * rem,
       cx = width - pad - radius,
@@ -818,6 +885,7 @@ export default class PortfolioScene {
           (r.bottom ?? r.top + r.height) > 0;
       const available =
         policy &&
+        card.coverReady !== false &&
         this.visibleIds.has(card.p.id) &&
         !this.state.project &&
         !this.flight &&
@@ -848,7 +916,7 @@ export default class PortfolioScene {
       if (!entry) continue;
       this.syncCasePlayback(entry, wanted && !entry.failed);
       entry.loaded = policy && !entry.failed && caseVideoFrameReady(entry.video);
-      if (entry.loaded && !entry.texture) {
+      if (entry.loaded && !entry.texture && wanted) {
         const tex = new THREE.VideoTexture(entry.video);
         tex.colorSpace = THREE.NoColorSpace;
         tex.minFilter = tex.magFilter = THREE.LinearFilter;
@@ -949,8 +1017,12 @@ export default class PortfolioScene {
       index = this.cards.indexOf(card),
       u = this.rail.material.uniforms;
     this.railProjectId = card.p.id;
+    if (card.coverReady === false) {
+      void this.ensureCover(card);
+      reveal = 0;
+    }
     r.reveal = mix(r.reveal, reveal, follow);
-    this.rail.visible = r.reveal > 0.001 && !this.flight;
+    this.rail.visible = r.reveal > 0.001 && !this.flight && card.coverReady !== false;
     this.setRailSurface(card, index);
     r.fade = Math.min(1, r.fade + dt / 0.35);
     u.u_fade.value = 1 - (1 - r.fade) ** 2;
@@ -987,6 +1059,10 @@ export default class PortfolioScene {
     const card = this.registry.get(project.id),
       target = document.querySelector('[data-flip-target="true"]');
     if (!card || !target) return;
+    if (card.coverReady === false) {
+      void this.ensureCover(card);
+      return;
+    }
     const mesh = card.mesh,
       u = mesh.material.uniforms;
     if (phase === 'opening') {
@@ -1075,10 +1151,35 @@ export default class PortfolioScene {
       !this.visibleIds.has(card.p.id) ||
       !mesh.visible
     ) {
-      hit.style.display = 'none';
+      if (hit.style.display !== 'none') hit.style.display = 'none';
       return;
     }
     mesh.updateMatrixWorld();
+    const u = mesh.material.uniforms,
+      signature = [
+        this.width,
+        this.height,
+        ...mesh.matrixWorld.elements,
+        ...this.camera.projectionMatrix.elements,
+        ...this.camera.matrixWorldInverse.elements,
+        ...[
+          'u_sheetW',
+          'u_sheetP',
+          'u_sheetV',
+          'u_sheetD',
+          'u_sheetC',
+          'u_sheetT',
+          'u_leanW',
+          'u_leanA',
+          'u_bulgeH',
+          'u_bulgeA',
+        ].map((name) => u[name]?.value || 0),
+      ];
+    if (card.hitSignature?.every((value, index) => value === signature[index])) {
+      if (hit.style.display !== 'block') hit.style.display = 'block';
+      return;
+    }
+    card.hitSignature = signature;
     const points = [];
     for (const side of [0, 1, 2, 3])
       for (let i = 0; i < 9; i++) {
@@ -1245,12 +1346,16 @@ export default class PortfolioScene {
         img?.classList.remove('gl-media-ready');
         continue;
       }
-      const r = el.getBoundingClientRect();
-      if (r.width <= 0 || r.height <= 0) continue;
       const parked = caseMediaIsParked(el),
         slot = el.dataset?.caseSlot ?? Array.from(el.parentElement.children).indexOf(el),
         key = this.state.project.id + ':' + src + ':' + slot;
       let entry = this.caseMedia.get(key);
+      if (parked) {
+        if (entry?.video) this.syncCasePlayback(entry, false);
+        continue;
+      }
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) continue;
       if (
         !entry &&
         (parked || r.top > rect.bottom + rect.height || r.bottom < rect.top - rect.height)
@@ -1306,6 +1411,7 @@ export default class PortfolioScene {
           video.classList.remove('gl-media-ready');
           continue;
         }
+        if (!entry.texture && !visible) continue;
         if (!entry.texture) {
           const tex = new THREE.VideoTexture(video);
           tex.colorSpace = THREE.NoColorSpace;
@@ -1454,7 +1560,7 @@ export default class PortfolioScene {
       el.classList.remove('gl-progress-ready');
       return;
     }
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(this.dpr || 2, window.devicePixelRatio || 1);
     if (gl.width !== rect.width || gl.height !== rect.height || gl.dpr !== dpr) {
       gl.width = rect.width;
       gl.height = rect.height;
@@ -1545,6 +1651,7 @@ export default class PortfolioScene {
         if (!isFlight) {
           const active = this.state.project?.id === card.p.id;
           mesh.visible =
+            card.coverReady !== false &&
             this.visibleIds.has(card.p.id) &&
             !this.state.project &&
             this.modeAlpha > 0.001 &&

@@ -1,104 +1,143 @@
-# Deployment preparation
+# Hosting, releases and domain setup
 
-The application supports a GitHub Pages demo and the existing Sites build. Treat `outputs/oleksii-portfolio` as the repository root; do not include the surrounding workspace or private `work/` records. Running the build commands below does not publish anything.
+## Current setup
 
-## Verify the release candidate
+| Item             | State                                                                             |
+| ---------------- | --------------------------------------------------------------------------------- |
+| Canonical source | [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io), `main` |
+| Published files  | `gh-pages`, root directory                                                        |
+| Confirmed demo   | [https://looppio.github.io/](https://looppio.github.io/)                          |
+| Custom domain    | `alextish.com` prepared; connection and HTTPS verification pending                |
+| Domain config    | `pages.config.json` has `customDomain: "alextish.com"`; activation is pending     |
+| Validation       | Local `npm run check`; the CI example is inactive                                 |
 
-From the project root, with Node.js 22.12 or newer:
+GitHub Pages is available for public repositories on GitHub Free. This portfolio needs no paid server or database. Domain registration and renewal remain separate. Current Pages limits include a 1 GB published site and a soft 100 GB monthly bandwidth allowance; check these again as media or traffic grows. [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
 
-```sh
-npm ci
-npm run check
-npm run preview
-```
+Keep source, lockfile, tests, documentation and approved assets together in this repository. The Downloads handoff is an older snapshot. Do not publish its surrounding private folders, archives or manifests.
 
-`check` checks formatting and assets, builds the production output, runs all Node regression tests and validates the build. It complements visual review.
+## Prerequisites
 
-Standalone tests include packaging assertions that read `dist/`. On a clean checkout, build before running them:
+Use Node.js 24 from `.nvmrc`, npm, Git and ordinary repository-write authentication for `looppio/looppio.github.io`. Keep credentials in the local credential manager. No token belongs in this repository, and this branch-based release does not need workflow-edit permission. Use `npm run deploy:pages -- --help` to inspect supported release options.
 
-```sh
-npm run build
-npm test
-```
+Repository Settings → Pages must use **Deploy from a branch**, **gh-pages**, **/ (root)**. The YAML in `docs/ci-check.example.yml` is documentation only, not active CI. GitHub's deployment status does not replace the project's checks.
 
-Inspect the URL printed by the preview server. Preview serves the Vite client output, not the Sites worker runtime. A passing preview does not establish that an external host has the correct routing or asset binding.
+`pages.config.json` records the repository, source and publishing branches, and custom domain. The current configuration uses `customDomain: "alextish.com"`. This prepares the release CNAME; DNS activation and HTTPS must still be verified before the domain is announced as live. Do not change it merely to label a local preview.
 
-Review first load, About and Contact, the filter's curated and all-gallery actions, direct case navigation, All cases, grouped media, lightbox, video posters and playback, reduced motion and a narrow viewport. Record what was actually checked in `design-qa.md`; do not overwrite historical evidence or imply unperformed checks passed.
-
-## Build output
-
-`npm run build` runs Vite and then `scripts/prepare-sites-build.mjs`.
-
-```text
-dist/
-  client/
-    index.html
-    assets/...
-  server/
-    index.js
-  .openai/
-    hosting.json
-```
-
-Vite generates `dist/client/` from the application and copies the complete `public/` directory into it. The preparation script copies `worker/index.js` to `dist/server/index.js` and the hosting metadata into `dist/.openai/hosting.json`. Generated output is not a substitute for the source project and should be regenerated after changes.
-
-Keep these existing hosting integration files intact unless an explicitly scoped hosting change requires otherwise:
-
-- `.openai/hosting.json`
-- `worker/index.js`
-- `scripts/prepare-sites-build.mjs`
-- `tests/sites-worker.test.mjs`
-
-`npm run test:sites` checks worker behavior and the required artifact layout. Build output must exist before the packaging checks that read it.
-
-## GitHub Pages demo
-
-The repository is [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io), serving [https://looppio.github.io/](https://looppio.github.io/). A root user site preserves the app's absolute `/assets/`, `/full` and `/projects/` paths. Do not deploy this output below an arbitrary repository subdirectory.
-
-Source is kept on `main`. The `gh-pages` branch contains only the generated `dist/client/` tree. Configure repository Settings → Pages → Build and deployment with **Deploy from a branch**, **gh-pages**, **/ (root)**. This release path does not require a custom Actions workflow or a token with workflow-edit permission.
-
-The former check-only workflow is preserved as `docs/ci-check.example.yml`. It is an inactive reference, so checks currently run locally before publication. Enabling custom CI later is a separate setup step.
-
-Prepare a release from the source root:
+## Preview a candidate
 
 ```sh
 npm ci
 npm run check
 npm run prepare:pages
+npm run check:pages
+npm run preview -- --host 127.0.0.1
 ```
 
-`prepare:pages` uses the current project inventory to copy the production HTML entry to `full/index.html` and `projects/<slug>/index.html`. It adds `.nojekyll` for branch publishing. The app accepts both original client URLs and the trailing-slash URLs served by GitHub Pages. The query string stays in the browser URL, including category filters and `all=1`. No catch-all `404.html` is created, so missing assets and unknown paths do not masquerade as successful app responses.
+Inspect first load, About and Contact, CV downloads, filters, All cases, a direct case reload, grouped media and playback. Use desktop and narrow layouts; check reduced motion when affected. Review the actual `dist/client` files because every `public/` file is copied, including unused media.
 
-For a fresh build without the full validation, `npm run build:pages` runs the ordinary Sites-compatible build followed by Pages preparation. Every Vite rebuild clears previous generated route directories, so always rerun Pages preparation after a build. A deployment must publish the same client output that was checked, without a later unvalidated source change.
+`npm run check` formats nothing: it checks formatting and assets, builds, runs regression tests and validates the production artifact. `npm run prepare:pages` then creates directory entry points for `/full/` and every registered `/projects/<slug>/`, adds `.nojekyll`, retains dependency notices and writes release metadata. The app supports trailing slashes and preserves selection parameters. Unknown routes and missing assets keep a 404 response; there is no catch-all 404 redirect.
 
-Commit the reviewed source to `main`. Then copy the checked `dist/client/` contents into an isolated checkout of `gh-pages`, commit and push that branch. Keep the existing branch history on later releases; do not force-push. Publish neither `dist/server/` nor `dist/.openai/` to Pages, and never copy the parent workspace or `node_modules/`. Preserve the source project and all existing Sites files.
+Every ordinary Vite rebuild clears the prepared route files. Run Pages preparation again after rebuilding. `npm run build:pages` is a convenient fresh build plus preparation, but it does not replace the full checks.
 
-After Pages finishes publishing, check the actual HTTPS root, `/full/`, a registered `/projects/<slug>/` URL with selection parameters, a downloadable CV and a video byte-range request. A known route without its final slash can redirect once to the directory URL. Reload both the archive and a case directly. Measure the public URL with a cold cache and record device/network conditions; the local preview and compressed bundle size are not measurements of internet load speed.
+## Publish reviewed source
 
-## Sites or another worker host
+1. Finish the review, commit source on `main` and push it to `origin/main`. Include documentation and the lockfile when changed. Do not commit `dist/` on `main`.
+2. Ensure the source checkout is clean and matches remote `main`. The release script checks the expected repository and source state.
+3. Run the default dry run:
 
-The worker expects an `ASSETS` binding. Existing asset responses pass through. If the asset binding returns 404 for a GET or HEAD request that accepts `text/html`, the worker serves `/index.html` so the client can handle its route. Requests without HTML acceptance retain their normal result.
+   ```sh
+   npm run deploy:pages
+   ```
 
-There is no application API and no explicit `/api` path exemption in this worker. If a backend is added later, route it explicitly and test it rather than assuming the current fallback knows which paths are APIs. The current hosting metadata does not configure D1 or R2 resources.
+   It installs locked dependencies, runs the full checks, prepares and validates Pages output, and stages a temporary publishing checkout. It does not push a deployment.
 
-Use the intended hosting integration to attach `dist/client/` to the asset binding and run the prepared worker. This guide does not specify a provider-specific publish command or contain deployment credentials. Publishing requires a separate authorized action and a chosen destination.
+4. Review the reported source commit, domain and artifact summary, then publish explicitly:
 
-## Another static host
+   ```sh
+   npm run deploy:pages -- --publish
+   ```
 
-The client can also be served by a host that supports SPA navigation. Configure:
+   The tool rebuilds and checks again rather than trusting a stale `dist/`. It requires a clean `main` whose HEAD equals remote `main`, and pushes a normal descendant commit to `gh-pages`. It never force-pushes. A concurrent remote update should be investigated and retried from the updated state.
 
-- The built `dist/client/` directory as the public root.
-- HTML fallback for `/full` and `/projects/<slug>`, including direct visits and reloads.
-- Query-string preservation for `tags` and `all`.
-- Correct asset MIME types and byte-range delivery for media.
-- HTTPS for the public site and browser capabilities such as clipboard access.
+5. Wait for GitHub Pages to finish publishing and complete the live checks below. Record the source commit and deployment commit with the result. A successful push alone is not a completed deployment.
 
-Do not turn missing JavaScript, media, write requests or future API errors into successful HTML pages. Test direct URLs on the actual target host. Asset and application paths currently assume deployment at the domain root; a subdirectory deployment requires deliberate changes to routing and absolute asset paths, not just copying the folder below a prefix.
+No application code should be maintained directly in `gh-pages`. The script publishes only the client artifact, not dependencies, the source workspace, `dist/server` or `.openai` hosting metadata.
 
-## Publication boundary
+### Release identity
 
-Before uploading, inspect the actual generated client directory, not only the files referenced by `src/`. Unused files in `public/` are still shipped. Remove private originals, provenance manifests and obsolete material from the public input before rebuilding; moving files only out of `dist/` is temporary because the next build copies them again.
+`release-source.json` at the public root records `schemaVersion`, repository, source branch, full `sourceCommit`, `sourceDirty`, package version, custom domain, route count and `artifactSha256`. The fingerprint covers the prepared artifact excluding this metadata file. It contains no local paths or credentials. The source SHA identifies a release even when the package version is unchanged.
 
-Confirm asset rights and any reference-code or third-party license requirements. Retain required license notices. Confirm the NDA redactions across every included frame, keep source attribution evidence private, and review any pending personal attribution before public release. Personal contribution is omitted while unconfirmed; its private proposal must not be published as fact. No source screenshot, automated test or earlier QA entry establishes permission to publish new material.
+After fetching the remote, inspect the deployment record without changing branches:
 
-For the future repository, keep source, reviewed public assets, dependency lockfile, tests and documentation together. Keep `node_modules/`, generated output, QA captures and private collection records out of source control as appropriate to the repository's ignore rules. Do not initialize or push a repository from the parent workspace by mistake.
+```sh
+git fetch origin
+git show origin/gh-pages:release-source.json
+```
+
+The first demo predates this metadata. Its source was `2015313` and its publishing commit was `bb81c98`; later releases should carry the record. Use `git log origin/gh-pages` to inspect retained deployment history.
+
+## Check the live release
+
+Confirm the active HTTPS root, `/full/`, a known case with filter parameters, all five CV downloads and a video. Reload the archive and case directly. Verify that a missing asset returns 404 and a byte-range video request returns 206. Inspect visible startup and navigation in the browser, not only response codes.
+
+Compare the served `release-source.json` with the intended source SHA. The full performance baseline and its limitations are in [Performance](PERFORMANCE.md). New speed claims require a new measurement of the deployed commit under stated device, network and cache conditions.
+
+## Roll back without rewriting history
+
+Find the last accepted source SHA from deployment history and its `release-source.json`. Compare it with current `main` to identify the change to undo. Preserve unrelated changes and domain configuration. For a single faulty source commit, the normal path is:
+
+```sh
+git switch main
+git pull --ff-only
+git revert BAD_SOURCE_COMMIT
+npm run check
+git push origin main
+npm run deploy:pages
+npm run deploy:pages -- --publish
+```
+
+Replace `BAD_SOURCE_COMMIT` with the reviewed commit. For several commits or a merge, prepare a reviewed revert branch rather than guessing a range. Resolve conflicts, validate and merge it before release. The resulting deployment points to the new revert commit and preserves both source and publishing history. Do not reset or force-push `gh-pages` to an old commit. Repeat the live checks after rollback.
+
+## Connect alextish.com
+
+**Status: prepared, pending.** These steps are a runbook, not evidence that DNS or HTTPS is already configured. Use `alextish.com` as canonical and redirect `www.alextish.com` to it. Domain registration stays with Vicetemple. Cloudflare Free has been selected for DNS in the existing account. The website records have been imported in DNS-only mode; nameserver activation and public verification remain pending.
+
+1. In the `looppio` account's Pages settings, verify ownership using GitHub's supplied TXT record. Retain that record. Its value must come from GitHub. [Domain verification](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/verifying-your-custom-domain-for-github-pages)
+2. Prepare `customDomain: "alextish.com"` in `pages.config.json`, review, commit and push it. Set the repository's Pages custom domain before pointing web DNS at Pages. Saving that setting may add a `CNAME` commit on `gh-pages`; preserve it.
+3. In Cloudflare DNS, use the records below in DNS-only mode. In Vicetemple, enter the exact nameserver pair assigned to this zone by Cloudflare; do not reuse another zone’s pair. Confirm delegation before relying on a saved record in the dashboard. Preserve unrelated records, especially email records. Avoid wildcard records.
+
+   | Type  | Name  | Value               |
+   | ----- | ----- | ------------------- |
+   | A     | `@`   | `185.199.108.153`   |
+   | A     | `@`   | `185.199.109.153`   |
+   | A     | `@`   | `185.199.110.153`   |
+   | A     | `@`   | `185.199.111.153`   |
+   | CNAME | `www` | `looppio.github.io` |
+
+   The imported IPv6 records are `2606:50c0:8000::153`, `2606:50c0:8001::153`, `2606:50c0:8002::153` and `2606:50c0:8003::153`, all at the apex. Keep the GitHub ownership TXT record in Cloudflare without publishing its verification value in this repository.
+
+4. Release with matching configuration. A deliberate CNAME change requires explicit acknowledgement when the release tool reports a difference:
+
+   ```sh
+   npm run deploy:pages -- --allow-domain-change
+   npm run deploy:pages -- --publish --allow-domain-change
+   ```
+
+5. Verify DNS, enable **Enforce HTTPS** when GitHub allows it, and check the apex plus `www` redirect. DNS/certificate availability can take up to 24 hours. [GitHub custom-domain setup](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
+
+Useful read-only checks:
+
+```sh
+dig alextish.com A +short
+dig www.alextish.com CNAME +short
+curl -I https://alextish.com/
+curl -I https://www.alextish.com/
+```
+
+Pages preparation generates `CNAME` from the committed config so future releases retain it. The domain-change guard prevents silently removing or changing a published domain. A domain is not connected merely because a CNAME file exists locally. Update the README status only after live HTTPS, redirects, routes, CVs and video checks pass. Do not combine a content rollback with removal of a working custom domain.
+
+## Preserved Sites output
+
+`npm run build` still produces `dist/client/index.html`, `dist/server/index.js` and `dist/.openai/hosting.json`. The existing worker expects an `ASSETS` binding and falls back to `/index.html` only for HTML GET/HEAD navigation after an asset 404. GitHub Pages does not execute that worker.
+
+Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs` and `tests/sites-worker.test.mjs` intact. Another host can use the retained build, but migration is a separate deliberate change. The current deployment needs no application API, database or object-storage service.
