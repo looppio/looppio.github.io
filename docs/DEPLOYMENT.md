@@ -53,7 +53,7 @@ Keep these existing hosting integration files intact unless an explicitly scoped
 
 ## GitHub Pages demo
 
-The intended repository is `looppio/looppio.github.io`, serving `https://looppio.github.io/`. A root user site preserves the app's absolute `/assets/`, `/full` and `/projects/` paths. Do not deploy this output below an arbitrary repository subdirectory.
+The repository is [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io), serving [https://looppio.github.io/](https://looppio.github.io/). A root user site preserves the app's absolute `/assets/`, `/full` and `/projects/` paths. Do not deploy this output below an arbitrary repository subdirectory.
 
 Source is kept on `main`. The `gh-pages` branch contains only the generated `dist/client/` tree. Configure repository Settings → Pages → Build and deployment with **Deploy from a branch**, **gh-pages**, **/ (root)**. This release path does not require a custom Actions workflow or a token with workflow-edit permission.
 

@@ -1,6 +1,8 @@
 # Oleksii Tyshchenko portfolio
 
-A local React and Three.js portfolio with an animated cloud background, a WebGL gallery, category filters and a complete case archive. Case pages combine real DOM controls with measured WebGL media surfaces.
+A React and Three.js portfolio with an animated cloud background, a WebGL gallery, category filters and a complete case archive. Case pages combine real DOM controls with measured WebGL media surfaces.
+
+[Live demo](https://looppio.github.io/) · [Source repository](https://github.com/looppio/looppio.github.io)
 
 This directory, `outputs/oleksii-portfolio`, is the repository root. The surrounding workspace and its `work/` records are not part of the repository.
 
