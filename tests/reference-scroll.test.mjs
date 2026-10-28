@@ -149,16 +149,16 @@ test('per-element horizontal wrap remains continuous after many laps in both dir
   scroll.destroy();
 });
 
-test('interpolation uses source .1 frame ratio, caps ratio at two, and rounds to .01 CSS px', () => {
+test('interpolation uses exponential .1 response, bounds catch-up, and rounds to .01 CSS px', () => {
   const f = fixture();
   const scroll = f.create({ input: false });
   scroll.measure();
   scroll.push(100);
   assert.equal(scroll.tick(1).current, 10);
-  assert.equal(scroll.tick(20).current, 28);
-  assert.equal(scroll.tick(0).current, 28);
-  assert.equal(scroll.tick(0.5).current, 31.6);
-  assert.equal(scroll.velocity, 68.4);
+  assert.equal(scroll.tick(20).current, 27.1);
+  assert.equal(scroll.tick(0).current, 27.1);
+  assert.equal(scroll.tick(0.5).current, 30.84);
+  assert.equal(scroll.velocity, 69.16);
   scroll.destroy();
 });
 
@@ -198,8 +198,8 @@ test('finite column clamps input and reports real normalized progress at both en
   assert.equal(scroll.progress, 1);
   scroll.push(-100000);
   assert.equal(scroll.target, 0);
-  assert.equal(scroll.tick(2).current, 832);
-  assert.equal(scroll.progress, 0.8);
+  assert.equal(scroll.tick(2).current, 842.4);
+  assert.ok(Math.abs(scroll.progress - 0.81) < 1e-12);
   scroll.reset(-1000);
   assert.equal(scroll.current, 0);
   assert.equal(reported.at(-1), 0);
@@ -272,7 +272,7 @@ test('finite resize clamps the target while allowing the old current value to ea
   assert.equal(scroll.maxScroll, 640);
   assert.equal(scroll.target, 640);
   assert.equal(scroll.current, 1000);
-  assert.equal(scroll.tick(2).current, 928);
+  assert.equal(scroll.tick(2).current, 931.6);
   assert.equal(scroll.progress, 1);
   scroll.destroy();
 });
@@ -292,9 +292,9 @@ test('offscreen parking waits one frame and reset force-unparks every item', () 
   scroll.destroy();
 });
 
-test('discrete wheel is queued and dissipates .22 per normalized frame', () => {
+test('case wheel retains its source gain and .22 queue dissipation', () => {
   const f = fixture();
-  const scroll = f.create();
+  const scroll = createVerticalScroll({ outer: f.outer, inner: f.inner });
   scroll.measure();
   f.win.emit('wheel', { target: f.children[0], deltaY: 100, timeStamp: 1000 });
   assert.equal(scroll.target, 0, 'input waits for the host tick');
@@ -305,9 +305,9 @@ test('discrete wheel is queued and dissipates .22 per normalized frame', () => {
   scroll.destroy();
 });
 
-test('wheel line/page units use CSS pixels and fast trackpad packets bypass stepped queue', () => {
+test('case wheel line/page units and fast trackpad packets retain their behavior', () => {
   const f = fixture();
-  const scroll = f.create();
+  const scroll = createVerticalScroll({ outer: f.outer, inner: f.inner });
   scroll.measure();
   f.win.emit('wheel', { deltaY: 1, deltaMode: 1, timeStamp: 1000 });
   scroll.tick(1);
@@ -393,7 +393,10 @@ test('horizontal wheel line/page units normalize both axes and ignore pinch zoom
   scroll.reset(0);
   f.win.emit('wheel', { deltaX: 1, deltaY: 0, deltaMode: 2, timeStamp: 1010 });
   scroll.tick(1);
-  assert.equal(scroll.current, 76.16);
+  assert.ok(
+    scroll.current > 10 && scroll.current < 12,
+    'page packets are normalized and smoothed rather than jumping a page',
+  );
   scroll.reset(0);
   f.win.emit('wheel', { deltaX: 10, deltaY: 10, ctrlKey: true, timeStamp: 1020 });
   scroll.tick(1);
@@ -417,9 +420,9 @@ test('finite vertical case ignores horizontal wheel and keeps mixed gestures on 
   scroll.destroy();
 });
 
-test('touch uses source 3.25 movement and 35 release impulse, cancel drops the impulse', () => {
+test('case touch retains source gain and release behavior; cancel drops the impulse', () => {
   const f = fixture();
-  const scroll = f.create();
+  const scroll = createVerticalScroll({ outer: f.outer, inner: f.inner });
   scroll.measure();
   f.win.emit('touchstart', { target: f.children[0], targetTouches: [{ clientY: 500 }] });
   f.win.emit('touchmove', { targetTouches: [{ clientY: 490 }] });
@@ -519,7 +522,11 @@ test('controllers share one listener set, disabling drops pending input, final d
   first.setEnabled(false);
   first.setEnabled(true);
   first.tick(1);
-  assert.equal(first.target, 100, 'queued wheel input was dropped while disabled');
+  assert.equal(
+    first.target,
+    first.current,
+    'queued wheel input and user momentum stop while disabled',
+  );
   first.destroy();
   assert.equal(f.win.listeners.get('wheel').size, 1);
   assert.equal('_vrect' in f.children[0], false);
@@ -570,5 +577,283 @@ test('unequal-width cards keep every cyclic gap across one thousand large bidire
     assert.ok(Math.abs(ordered[0].left + scroll.length - ordered[2].right - 10) < 1e-7);
     assert.ok(scroll.progress >= 0 && scroll.progress < 1);
   }
+  scroll.destroy();
+});
+
+test('phone gallery follows a finger near 1:1 with bounded, velocity-based release', () => {
+  const f = fixture({ width: 390, height: 844, itemSize: 300 });
+  const scroll = f.create();
+  scroll.measure();
+  f.win.emit('touchstart', {
+    target: f.children[0],
+    timeStamp: 1000,
+    targetTouches: [{ clientX: 100, clientY: 500 }],
+  });
+  f.win.emit('touchmove', { timeStamp: 1016, targetTouches: [{ clientX: 100, clientY: 460 }] });
+  assert.equal(scroll.target, 44);
+  assert.equal(scroll.dragged, true);
+  f.win.emit('touchend', { timeStamp: 1032 });
+  assert.ok(
+    scroll.target > 44 && scroll.target < 200,
+    'release continues gently, not last-packet ×35',
+  );
+  const click = f.win.emit('click', { target: f.children[0], detail: 1 });
+  assert.equal(click.prevented, true);
+  assert.equal(click.stopped, true);
+  scroll.tick(1);
+  assert.ok(scroll.delta > 0);
+  assert.equal(scroll.dragged, true, 'drag rejection survives pointer release through inertia');
+  for (let i = 0; i < 180; i++) scroll.tick(1);
+  assert.equal(scroll.dragged, false);
+  f.win.emit('touchstart', {
+    target: f.children[0],
+    timeStamp: 5000,
+    targetTouches: [{ clientX: 100, clientY: 500 }],
+  });
+  f.win.emit('touchend', { timeStamp: 5016 });
+  assert.equal(f.win.emit('click', { target: f.children[0], detail: 1 }).prevented, false);
+  scroll.destroy();
+});
+
+test('touch release distance is independent of 30 Hz versus 60 Hz input packet frequency', () => {
+  const ends = [];
+  for (const interval of [16, 32]) {
+    const f = fixture({ width: 390, height: 844 });
+    const scroll = f.create();
+    scroll.measure();
+    f.win.emit('touchstart', {
+      target: f.children[0],
+      timeStamp: 1000,
+      targetTouches: [{ clientX: 100, clientY: 500 }],
+    });
+    for (let time = interval; time <= 160; time += interval)
+      f.win.emit('touchmove', {
+        timeStamp: 1000 + time,
+        targetTouches: [{ clientX: 100, clientY: 500 - time * 0.625 }],
+      });
+    f.win.emit('touchend', { timeStamp: 1170 });
+    ends.push(scroll.target);
+    scroll.destroy();
+  }
+  assert.ok(Math.abs(ends[0] - ends[1]) < 0.001);
+});
+
+test('gallery inertia uses the visible viewport without changing layout measurements', () => {
+  const results = [];
+  for (const visibleHeight of [844, 580]) {
+    const f = fixture({ width: 390, height: 844 });
+    f.win.visualViewport = { width: 390, height: visibleHeight };
+    const scroll = f.create();
+    scroll.measure();
+    const length = scroll.length;
+    f.win.emit('touchstart', {
+      target: f.children[0],
+      timeStamp: 1000,
+      targetTouches: [{ clientX: 100, clientY: 800 }],
+    });
+    f.win.emit('touchmove', { timeStamp: 1016, targetTouches: [{ clientX: 100, clientY: 0 }] });
+    assert.equal(scroll.target, visibleHeight * 0.45);
+    f.win.emit('touchend', { timeStamp: 1032 });
+    assert.ok(scroll.target <= visibleHeight * 0.55);
+    assert.equal(scroll.length, length);
+    assert.equal(f.doc.documentElement.clientHeight, 844);
+    results.push(scroll.target);
+    scroll.destroy();
+  }
+  assert.ok(results[1] < results[0]);
+  assert.ok(Math.abs(results[1] - 319) < 0.01);
+});
+
+test('input budgets ignore invalid visual viewport values and use a smaller measured container', () => {
+  const f = fixture({ width: 390, height: 844 });
+  f.win.visualViewport = { width: 0, height: Number.NaN };
+  f.outer.box.height = 500;
+  const scroll = f.create();
+  scroll.measure();
+  f.win.emit('touchstart', {
+    target: f.children[0],
+    timeStamp: 1000,
+    targetTouches: [{ clientX: 100, clientY: 800 }],
+  });
+  f.win.emit('touchmove', { timeStamp: 1016, targetTouches: [{ clientX: 100, clientY: 0 }] });
+  assert.equal(scroll.target, 225);
+  scroll.destroy();
+});
+
+test('iPad horizontal ribbon accepts either swipe direction and locks its dominant touch axis', () => {
+  const ends = [];
+  for (const horizontal of [true, false]) {
+    const f = fixture({ axis: 'x', width: 1024, height: 1366, itemSize: 400 });
+    const scroll = f.create();
+    scroll.measure();
+    f.win.emit('touchstart', {
+      target: f.children[0],
+      timeStamp: 1000,
+      targetTouches: [{ clientX: 800, clientY: 600 }],
+    });
+    f.win.emit('touchmove', {
+      timeStamp: 1016,
+      targetTouches: [horizontal ? { clientX: 740, clientY: 598 } : { clientX: 798, clientY: 540 }],
+    });
+    assert.ok(scroll.target > 70 && scroll.target < 75);
+    ends.push(scroll.target);
+    scroll.tick(1);
+    assert.ok(f.children[0]._vrect.left < 0);
+    if (horizontal) {
+      const before = scroll.target;
+      f.win.emit('touchmove', { timeStamp: 1032, targetTouches: [{ clientX: 739, clientY: 530 }] });
+      assert.ok(
+        scroll.target - before < 3,
+        'cross-axis noise cannot accelerate a locked horizontal swipe',
+      );
+    }
+    scroll.destroy();
+  }
+  assert.equal(ends[0], ends[1]);
+});
+
+test('tapping during momentum stops movement without opening a card; the following tap works', () => {
+  const f = fixture({ width: 390, height: 844 });
+  const scroll = f.create();
+  scroll.measure();
+  f.win.emit('touchstart', {
+    target: f.children[0],
+    timeStamp: 1000,
+    targetTouches: [{ clientX: 100, clientY: 500 }],
+  });
+  f.win.emit('touchmove', { timeStamp: 1016, targetTouches: [{ clientX: 100, clientY: 450 }] });
+  f.win.emit('touchend', { timeStamp: 1032 });
+  scroll.tick(1);
+  f.win.emit('touchstart', {
+    target: f.children[1],
+    timeStamp: 1050,
+    targetTouches: [{ clientX: 100, clientY: 400 }],
+  });
+  assert.equal(scroll.target, scroll.current);
+  f.win.emit('touchend', { timeStamp: 1070 });
+  assert.equal(f.win.emit('click', { target: f.children[1], detail: 1 }).prevented, true);
+  assert.equal(scroll.dragged, false);
+  f.win.emit('touchstart', {
+    target: f.children[1],
+    timeStamp: 1100,
+    targetTouches: [{ clientX: 100, clientY: 400 }],
+  });
+  f.win.emit('touchend', { timeStamp: 1120 });
+  assert.equal(f.win.emit('click', { target: f.children[1], detail: 1 }).prevented, false);
+  scroll.destroy();
+});
+
+test('gallery gesture protection leaves header controls and keyboard activation alone', () => {
+  const f = fixture({ width: 390, height: 844 });
+  const scroll = f.create();
+  scroll.measure();
+  f.win.emit('touchstart', {
+    target: f.children[0],
+    timeStamp: 1000,
+    targetTouches: [{ clientX: 100, clientY: 500 }],
+  });
+  f.win.emit('touchmove', { timeStamp: 1016, targetTouches: [{ clientX: 100, clientY: 400 }] });
+  f.win.emit('touchend', { timeStamp: 1032 });
+  const header = f.element(0, 0, 100, 40);
+  assert.equal(f.win.emit('click', { target: header, detail: 1 }).prevented, false);
+  assert.equal(f.win.emit('click', { target: f.children[0], detail: 0 }).prevented, false);
+  scroll.setEnabled(false);
+  scroll.setEnabled(true);
+  assert.equal(scroll.dragged, false);
+  scroll.destroy();
+});
+
+test('touch slop, pause, cancel and pinch do not create stale release impulses', () => {
+  const f = fixture({ width: 390, height: 844 });
+  const scroll = f.create();
+  scroll.measure();
+  const start = (time) =>
+    f.win.emit('touchstart', {
+      target: f.children[0],
+      timeStamp: time,
+      targetTouches: [{ clientX: 100, clientY: 500 }],
+    });
+  start(1000);
+  f.win.emit('touchmove', { timeStamp: 1016, targetTouches: [{ clientX: 103, clientY: 497 }] });
+  f.win.emit('touchend', { timeStamp: 1032 });
+  assert.equal(scroll.target, 0);
+  assert.equal(scroll.dragged, false);
+  start(1100);
+  f.win.emit('touchmove', { timeStamp: 1116, targetTouches: [{ clientX: 100, clientY: 480 }] });
+  const before = scroll.target;
+  f.win.emit('touchend', { timeStamp: 1300 });
+  assert.equal(scroll.target, before, 'holding still before release adds no fling');
+  scroll.reset(0);
+  start(1400);
+  f.win.emit('touchmove', { timeStamp: 1416, targetTouches: [{ clientX: 100, clientY: 480 }] });
+  const cancelled = scroll.target;
+  f.win.emit('touchcancel');
+  f.win.emit('touchend', { timeStamp: 1432 });
+  assert.equal(scroll.target, cancelled);
+  scroll.reset(0);
+  start(1500);
+  f.win.emit('touchmove', {
+    timeStamp: 1516,
+    targetTouches: [
+      { clientX: 100, clientY: 450 },
+      { clientX: 150, clientY: 450 },
+    ],
+  });
+  f.win.emit('touchend', { timeStamp: 1532 });
+  assert.equal(scroll.target, 0);
+  scroll.destroy();
+});
+
+test('equal rapid mouse-wheel notches stay smoothed rather than switching into the trackpad path', () => {
+  const f = fixture({ axis: 'x' });
+  const scroll = f.create();
+  scroll.measure();
+  for (let i = 0; i < 3; i++)
+    f.win.emit('wheel', { target: f.children[0], timeStamp: 1000 + i * 10, deltaY: 100 });
+  assert.equal(scroll.target, 0);
+  scroll.tick(1);
+  assert.ok(scroll.current > 4 && scroll.current < 5, 'all three notches enter the smooth queue');
+  const deltas = [scroll.delta];
+  for (let i = 0; i < 90; i++) {
+    scroll.tick(1);
+    deltas.push(scroll.delta);
+  }
+  assert.ok(scroll.current > 250 && scroll.current < 330);
+  assert.ok(Math.max(...deltas) < 20);
+  assert.ok(deltas.every((value, i) => i === 0 || Math.abs(value - deltas[i - 1]) < 4));
+  scroll.destroy();
+});
+
+test('wheel reversal brakes pending forward impulses instead of fighting the new direction', () => {
+  const f = fixture({ axis: 'x' });
+  const scroll = f.create();
+  scroll.measure();
+  for (let i = 0; i < 5; i++) f.win.emit('wheel', { timeStamp: 1000 + i * 10, deltaY: 100 });
+  scroll.tick(1);
+  const before = scroll.current;
+  f.win.emit('wheel', { timeStamp: 1060, deltaY: -100 });
+  for (let i = 0; i < 30; i++) scroll.tick(1);
+  assert.ok(scroll.current < before, 'reversed intent wins over the remaining forward wheel queue');
+  scroll.destroy();
+});
+
+test('gallery decay matches elapsed time at 30, 60 and 120 Hz and bounds a stalled frame', () => {
+  const positions = [];
+  for (const hz of [30, 60, 120]) {
+    const f = fixture();
+    const scroll = f.create({ input: false });
+    scroll.measure();
+    scroll.push(1000);
+    for (let i = 0; i < hz / 5; i++) scroll.tick(60 / hz);
+    positions.push(scroll.current);
+    scroll.destroy();
+  }
+  assert.ok(Math.max(...positions) - Math.min(...positions) < 0.06);
+  const f = fixture();
+  const scroll = f.create({ input: false });
+  scroll.measure();
+  scroll.push(1000);
+  scroll.tick(600);
+  assert.equal(scroll.current, 190);
   scroll.destroy();
 });

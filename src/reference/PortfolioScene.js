@@ -8,6 +8,7 @@ import AnimatedSky from './AnimatedSky.js';
 import BootReveal from './BootReveal.js';
 import { loadDecodedCover } from './coverImages.js';
 import { renderBudget, frameDue } from './renderBudget.js';
+import LensChrome, { lensCoversPoint } from './lensChrome.js';
 import { createVirtualScroll } from './scroll.js';
 import { sourceEase, clamp, mix, deformPoint, smooth } from './motion.js';
 
@@ -46,6 +47,7 @@ export default class PortfolioScene {
     this.holeGroup = null;
     this.holeRetarget = null;
     this.holeGeometry = { center: [0.5, 0.5], radius: null };
+    this.lensChrome = new LensChrome(host.closest?.('.portfolio') || host.parentElement);
     this.pointerPeak = 0;
     this.flight = null;
     this.projectId = null;
@@ -115,6 +117,7 @@ export default class PortfolioScene {
     this.watchCaseVideos();
     this.onResize = () => {
       this.invalidateLensReady();
+      this.lensChrome.invalidate();
       clearTimeout(this.resizeTimer);
       this.resizeTimer = setTimeout(() => {
         const wasSmall = this.small;
@@ -324,6 +327,7 @@ export default class PortfolioScene {
         this.visibleIds.size > 1 &&
         !this.state.filtersOpen &&
         !this.state.overlay &&
+        this.hole.p === 0 &&
         !this.state.project &&
         this.state.mode === 'featured',
       onUpdate: (s) => {
@@ -349,6 +353,7 @@ export default class PortfolioScene {
   }
   resize() {
     this.invalidateLensReady();
+    this.lensChrome.invalidate();
     this.width = document.documentElement.clientWidth;
     this.height = document.documentElement.clientHeight;
     this.small = this.width <= 649;
@@ -424,6 +429,12 @@ export default class PortfolioScene {
   setState(next) {
     const prev = this.state;
     this.state = { ...prev, ...next };
+    if (
+      prev.overlay !== this.state.overlay ||
+      prev.mode !== this.state.mode ||
+      prev.project !== this.state.project
+    )
+      this.lensChrome.invalidate();
     if (this.state.project) void this.ensureCover(this.registry.get(this.state.project.id));
     if (prev.mode !== this.state.mode && this.post && !this.state.project) {
       this.wipe.capture(this.post.target.texture);
@@ -548,20 +559,34 @@ export default class PortfolioScene {
     parent.dataset.lensReady = String(ready);
     parent.style.setProperty('--lens-content-opacity', ready ? '1' : '0');
   }
-  outsideLens(x, y) {
+  lensField() {
     const width = this.width || document.documentElement.clientWidth || 1,
       height = this.height || document.documentElement.clientHeight || 1,
       geometry = this.holeGeometry.radius === null ? this.holeTarget() : this.holeGeometry;
-    const dx = (x / width - geometry.center[0]) * (1 + this.hole.s),
-      dy = (((1 - y / height - geometry.center[1]) * height) / width) * (1 - this.hole.s),
-      angle = Math.atan2(dy, dx),
-      p = clamp(this.hole.p);
-    const lobes =
-      Math.sin(angle * 3 + this.clock * 0.7) * 0.6 + Math.sin(angle * 5 - this.clock * 0.45) * 0.4;
-    const radius =
-      p * geometry.radius * (1 + REFERENCE_HOLE.breath * Math.sin(this.clock * 1.6)) +
-      lobes * REFERENCE_HOLE.wave * Math.sin(Math.PI * p);
-    return Math.hypot(dx, dy) > radius + REFERENCE_HOLE.reach;
+    return {
+      width,
+      height,
+      center: geometry.center,
+      radius: geometry.radius,
+      progress: this.bootReveal.pending ? 0 : this.hole.p,
+      squash: this.hole.s,
+      time: this.clock,
+    };
+  }
+  outsideLens(x, y) {
+    return !lensCoversPoint(x, y, this.lensField());
+  }
+  blockCoveredChrome(event) {
+    if (
+      event.detail !== 0 &&
+      event.target?.closest?.('.site-chrome') &&
+      !this.outsideLens(event.clientX, event.clientY)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    }
+    return false;
   }
   overlayClickIgnored(target) {
     const doc = this.host.ownerDocument || document;
@@ -580,6 +605,7 @@ export default class PortfolioScene {
     this.overlayDocument = doc;
     this.onOverlayDown = (event) => {
       this.overlayPointer = null;
+      if (this.blockCoveredChrome(event)) return;
       if (
         !this.state.overlay ||
         this.state.project ||
@@ -602,6 +628,7 @@ export default class PortfolioScene {
     this.onOverlayClick = (event) => {
       const down = this.overlayPointer;
       this.overlayPointer = null;
+      if (this.blockCoveredChrome(event)) return;
       if (
         !down ||
         !down.outside ||
@@ -675,11 +702,12 @@ export default class PortfolioScene {
       this.bootReveal.pending ||
       this.state.filtersOpen ||
       this.state.overlay ||
+      this.hole.p > 0 ||
       this.state.project ||
       !this.visibleIds.has(p.id)
     )
       return;
-    if (this.scroll?.dragged || event?.defaultPrevented) return;
+    if ((this.scroll?.dragged && event?.detail !== 0) || event?.defaultPrevented) return;
     this.callbacks.onOpen(p);
   }
   pose(rect) {
@@ -1727,7 +1755,10 @@ export default class PortfolioScene {
         p = sourceEase(clamp((this.clock - h.start) / h.duration));
       this.hole.p = mix(h.from, h.to, p);
       this.hole.s = h.to ? 0 : -0.1 * p;
-      if (p >= 0.9999) this.holeTween = null;
+      if (p >= 0.9999) {
+        this.hole.p = h.to;
+        this.holeTween = null;
+      }
     }
 
     this.veil.material.uniforms.u_alpha.value =
@@ -1753,6 +1784,8 @@ export default class PortfolioScene {
       ...(this.bootReveal.pending ? {} : pointer),
     });
     this.renderer.render(this.over, this.camera);
+    if (this.hole.p > 0 || this.lensChrome.clip !== 'none')
+      this.lensChrome.update(this.lensField());
     this.publishRenderedLensReady();
     if (!this.bootReady) {
       this.bootStep('Portfolio ready');
@@ -1779,6 +1812,7 @@ export default class PortfolioScene {
   }
   dispose() {
     this.destroyed = true;
+    this.lensChrome.dispose();
     this.bootReveal.dispose();
     this.stopOverlayDismiss();
     this.stopCaseVideos();

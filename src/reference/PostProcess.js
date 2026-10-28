@@ -15,7 +15,8 @@ import {
 /**
  * Minimal Three adapter for reference class gU, not a geometric ring.
  * GLSL and field equations originate in DZyj3ghP.js. The original application
- * is never imported. Only the approved UI fill differs (white by default).
+ * is never imported. The approved UI fill is white by default. Exact-output
+ * shortcuts skip inactive fields and pixels without visible refraction.
  *
  * Pipeline: render scene to pass.target -> pass.render(pass.target.texture, opts)
  * -> render the over/DOM UI. render leaves the selected output target active.

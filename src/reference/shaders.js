@@ -100,7 +100,7 @@ const shadePalette = (shader) =>
     .replaceAll('vec3(0.0), u_scrim', 'u_backdrop, u_scrim');
 export const CARD_FRAGMENT = shadePalette(CARD_FRAGMENT_SOURCE);
 export const RAIL_FRAGMENT = shadePalette(RAIL_FRAGMENT_SOURCE);
-export const LENS_FRAGMENT =
+const paletteLens =
   'uniform vec3 u_backdrop;\n' +
   pU.replace(/vec4\(\s*0\.0,\s*0\.0,\s*0\.0,\s*1\.0\s*\)/g, 'vec4(u_backdrop, 1.0)').replace(
     'vec4 page = mix(col, vec4(u_backdrop, 1.0), inside);',
@@ -109,6 +109,34 @@ export const LENS_FRAGMENT =
     // its antialiasing otherwise leaves a permanent bright pixel at the centre.
     'vec4 page = u_p <= 0.0 ? vec4(texture2D(u_scene, vUv).rgb, 1.0) : mix(col, vec4(u_backdrop, 1.0), inside);',
   );
+
+const lensCoverage = [
+  '\tfloat d = t - r;',
+  '\tfloat aa = max(fwidth(d), 0.0001);',
+  '\tfloat inside = 1.0 - smoothstep(-aa, aa, d);',
+].join('\n');
+
+// Calculate derivatives for every fragment before branching. Only skip the
+// original refraction where its final result is already fully determined;
+// the antialiased edge, refractive ring and active pointer keep their math.
+export const LENS_FRAGMENT = paletteLens.replace(lensCoverage, '').replace(
+  '\tfloat fall = 1.0 - smoothstep(r, r + u_reach, t);',
+  `\tfloat fall = 1.0 - smoothstep(r, r + u_reach, t);
+
+${lensCoverage}
+
+\t// Opaque centre and untouched exterior need no chromatic refraction.
+\tif (u_ballA <= 0.001 && u_p > 0.0) {
+\t\tif (inside >= 1.0) {
+\t\t\tgl_FragColor = vec4(u_backdrop, 1.0);
+\t\t\treturn;
+\t\t}
+\t\tif (fall <= 0.0 && inside <= 0.0) {
+\t\t\tgl_FragColor = vec4(texture2D(u_scene, vUv).rgb, 1.0);
+\t\t\treturn;
+\t\t}
+\t}`,
+);
 export const FLOOR_FRAGMENT =
   'uniform float u_invertUI;\n' +
   PF.replace(

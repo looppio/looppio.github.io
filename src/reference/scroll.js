@@ -94,8 +94,16 @@ function sharedInputHub(win) {
       cancelPointer();
     },
     click(event) {
-      if (!clickOwner) return;
+      const owner = clickOwner;
       clickOwner = null;
+      // Keyboard activation is deliberate. Pointer taps on a moving gallery
+      // stop the ribbon; they must not open whichever card slid underneath.
+      if (event.detail === 0) return;
+      const blocked =
+        owner ||
+        [...clients].find((client) => client.contains(event.target) && client.blocksClick?.());
+      if (!blocked) return;
+      blocked.consumeClick?.();
       event.preventDefault();
       event.stopPropagation();
     },
@@ -155,6 +163,7 @@ export function createVirtualScroll({
   enabled = true,
   blocked = false,
   input = true,
+  inputProfile = 'gallery',
   ease = 0.1,
   onUpdate,
   onProgress,
@@ -183,7 +192,19 @@ export function createVirtualScroll({
   let previousWheelTime = 0;
   let trackpadTime = -500;
   let touchY = 0;
+  let touchX = 0;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchAxis = null;
+  let touchTracking = false;
+  let touchDragging = false;
+  let touchTime = 0;
+  let touchVelocity = 0;
   let touchDelta = 0;
+  let suppressClick = false;
+  let galleryMotion = false;
+  let wheelKind = null;
+  let wheelMagnitude = 0;
   let downX = 0;
   let downY = 0;
   let pointerPosition = 0;
@@ -196,8 +217,33 @@ export function createVirtualScroll({
   const acceptsInput = () =>
     active() && !resolve(blocked) && !container.closest?.('[data-scrubbing="true"]');
   const isFinite = () => Boolean(resolve(finite));
+  const galleryInput = () => inputProfile === 'gallery' && !isFinite();
   const screenWidth = () => win?.document?.documentElement?.clientWidth || viewport?.width || 0;
   const screenHeight = () => win?.document?.documentElement?.clientHeight || viewport?.height || 0;
+  // Browser bars in WKWebView can shrink the visible area without resizing
+  // the layout viewport. Limit input travel to that area, not card geometry.
+  const inputExtent = (dimension) => {
+    const sizes = [
+      win?.visualViewport?.[dimension],
+      win?.document?.documentElement?.[dimension === 'width' ? 'clientWidth' : 'clientHeight'],
+      viewport?.[dimension],
+    ].filter((size) => Number.isFinite(size) && size > 0);
+    return sizes.length ? Math.min(...sizes) : 0;
+  };
+  const touchGain = () =>
+    Math.min(inputExtent('width'), inputExtent('height')) <= 649 ? 1.1 : 1.25;
+  const moving = () =>
+    galleryMotion &&
+    (Math.abs(target - current) > 2 ||
+      Math.abs(delta) > 0.5 ||
+      Math.abs(pendingWheel) > 0.5 ||
+      Math.abs(steppedWheel) > 0.5);
+  function stopMomentum() {
+    target = current;
+    delta = pendingWheel = steppedWheel = 0;
+    wheelEvent = null;
+    galleryMotion = false;
+  }
   const progress = () =>
     isFinite()
       ? maxScroll > 0
@@ -345,7 +391,8 @@ export function createVirtualScroll({
 
   function flushWheel(ratio) {
     if (steppedWheel) {
-      const portion = steppedWheel * (1 - Math.pow(1 - 0.22, Math.min(ratio || 0, 4)));
+      const decay = galleryInput() ? 0.14 : 0.22;
+      const portion = steppedWheel * (1 - Math.pow(1 - decay, Math.min(ratio || 0, 4)));
       pendingWheel += portion;
       steppedWheel -= portion;
       if (Math.abs(steppedWheel) < 0.05) {
@@ -367,15 +414,17 @@ export function createVirtualScroll({
       pendingWheel = steppedWheel = touchDelta = pointerDelta = delta = 0;
       wheelEvent = null;
       hub?.cancel(client);
+      suppressClick = false;
+      if (galleryInput() && galleryMotion) stopMomentum();
       return state();
     }
     const ratio = Number.isFinite(frameRatio) ? Math.max(0, frameRatio) : 0;
     flushWheel(ratio);
     const previous = current;
-    // CSMsEA09.V without its optional dt argument is the original plain lerp.
-    current = roundPixel(
-      current * (1 - ease * Math.min(ratio, 2)) + target * ease * Math.min(ratio, 2),
-    );
+    // Exponential decay keeps the response consistent at 30/60/120 Hz.
+    // Bound catch-up after a visible-frame stall instead of jumping to target.
+    const blend = 1 - Math.pow(1 - clamp(0, 1, ease), Math.min(ratio, 2));
+    current = roundPixel(current + (target - current) * blend);
     delta = current - previous;
     layout();
     return notify();
@@ -386,6 +435,9 @@ export function createVirtualScroll({
     current = target = isFinite() ? clamp(0, maxScroll, value) : value;
     delta = pendingWheel = steppedWheel = touchDelta = pointerDelta = 0;
     wheelEvent = null;
+    suppressClick = galleryMotion = touchDragging = touchTracking = false;
+    touchAxis = null;
+    touchVelocity = 0;
     layout(true);
     return notify();
   }
@@ -409,36 +461,145 @@ export function createVirtualScroll({
     contains: (targetElement) => Boolean(targetElement && container.contains?.(targetElement)),
     wheel(event) {
       if (!acceptsInput() || event.ctrlKey) return;
-      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? screenHeight() : 1;
+      const scale =
+        event.deltaMode === 1
+          ? 16
+          : event.deltaMode === 2
+            ? galleryInput()
+              ? inputExtent('height')
+              : screenHeight()
+            : 1;
       // ie consumes deltaY + deltaX. Carry both physical wheel axes into its
       // existing normalized queue; the vertical at consumer still uses Y only.
       const amount = ((event.deltaY || 0) + (axis === 'x' ? event.deltaX || 0 : 0)) * scale;
       const since = event.timeStamp - previousWheelTime;
-      if (since < 30) trackpadTime = event.timeStamp;
-      const discrete =
-        Math.abs(amount) >= 40 && since >= 30 && event.timeStamp - trackpadTime >= 500;
+      if (!galleryInput()) {
+        if (since < 30) trackpadTime = event.timeStamp;
+        const discrete =
+          Math.abs(amount) >= 40 && since >= 30 && event.timeStamp - trackpadTime >= 500;
+        if (discrete) steppedWheel += amount * 1.25 * 2;
+        else pendingWheel += amount * 1.25;
+      } else {
+        // A burst of equal, coarse packets is still a mouse wheel even when
+        // delivered rapidly. Variable/fractional pixel packets keep the good
+        // trackpad path and its existing 1.25 gain.
+        const magnitude = Math.abs(amount),
+          coarse = magnitude >= 40 && Number.isInteger(amount),
+          repeatedStep = wheelKind === 'wheel' && Math.abs(magnitude - wheelMagnitude) < 0.01,
+          discrete =
+            coarse &&
+            (event.deltaMode !== 0 ||
+              repeatedStep ||
+              (since >= 30 && event.timeStamp - trackpadTime >= 500));
+        if (discrete) {
+          if (steppedWheel && Math.sign(steppedWheel) !== Math.sign(amount)) {
+            steppedWheel = 0;
+            target = current + (target - current) * 0.35;
+          }
+          const extent = inputExtent(axis === 'x' ? 'width' : 'height');
+          steppedWheel = clamp(
+            -extent * 0.75,
+            extent * 0.75,
+            steppedWheel +
+              clamp(
+                -(event.deltaMode === 2 ? extent : 240),
+                event.deltaMode === 2 ? extent : 240,
+                amount,
+              ) *
+                1.1,
+          );
+          wheelKind = 'wheel';
+        } else {
+          if (since < 30 || !Number.isInteger(amount)) trackpadTime = event.timeStamp;
+          pendingWheel += amount * 1.25;
+          wheelKind = 'trackpad';
+        }
+        wheelMagnitude = magnitude;
+        galleryMotion = true;
+      }
       previousWheelTime = event.timeStamp;
-      if (discrete) steppedWheel += amount * 1.25 * 2;
-      else pendingWheel += amount * 1.25;
       wheelEvent = event;
     },
     touchStart(event) {
-      touchY = (event.targetTouches?.[0] ?? event).clientY;
+      const point = event.targetTouches?.[0] ?? event;
+      touchY = point.clientY;
       touchDelta = 0;
+      if (!galleryInput()) return;
+      touchTracking =
+        acceptsInput() &&
+        (event.targetTouches?.length ?? 1) === 1 &&
+        (!event.target || client.contains(event.target));
+      touchDragging = false;
+      touchAxis = null;
+      touchVelocity = 0;
+      touchTime = event.timeStamp;
+      touchStartX = touchX = point.clientX || 0;
+      touchStartY = touchY;
+      suppressClick = touchTracking && moving();
+      if (touchTracking) stopMomentum();
     },
     touchMove(event) {
       if (!acceptsInput()) return;
       const point = event.targetTouches?.[0] ?? event;
-      touchDelta = touchY - point.clientY;
-      touchY = point.clientY;
-      push(touchDelta * 3.25, 0, event);
+      if (!galleryInput()) {
+        touchDelta = touchY - point.clientY;
+        touchY = point.clientY;
+        push(touchDelta * 3.25, 0, event);
+        return;
+      }
+      if (!touchTracking) return;
+      if ((event.targetTouches?.length ?? 1) !== 1) {
+        client.touchCancel();
+        return;
+      }
+      const x = point.clientX || 0,
+        y = point.clientY,
+        dx = touchStartX - x,
+        dy = touchStartY - y;
+      if (!touchAxis) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
+        // Horizontal ribbons accept a horizontal iPad swipe or the familiar
+        // vertical swipe, but lock once so diagonal jitter cannot add both.
+        touchAxis = axis === 'x' && Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      }
+      touchDelta = touchAxis === 'x' ? touchX - x : touchY - y;
+      const elapsed = clamp(1, 50, event.timeStamp - touchTime || 1000 / 60),
+        velocity = clamp(-1.8, 1.8, touchDelta / elapsed),
+        smoothing = 1 - Math.exp(-elapsed / 45);
+      touchVelocity += (velocity - touchVelocity) * smoothing;
+      touchX = x;
+      touchY = y;
+      touchTime = event.timeStamp;
+      if (Math.abs(touchDelta) > 0) {
+        touchDragging = suppressClick = galleryMotion = true;
+        push(touchDelta * touchGain(), 0, event);
+        const extent = inputExtent(axis === 'x' ? 'width' : 'height');
+        target = current + clamp(-extent * 0.45, extent * 0.45, target - current);
+      }
     },
     touchEnd(event) {
-      if (touchDelta) push(touchDelta * 35, 0, event);
-      touchDelta = 0;
+      if (!galleryInput()) {
+        if (touchDelta) push(touchDelta * 35, 0, event);
+      } else if (touchTracking && touchDragging && event.timeStamp - touchTime < 80) {
+        const extent = inputExtent(axis === 'x' ? 'width' : 'height'),
+          impulse = clamp(-extent * 0.35, extent * 0.35, touchVelocity * touchGain() * 180);
+        push(impulse, 0, event);
+        target = current + clamp(-extent * 0.55, extent * 0.55, target - current);
+      }
+      touchDelta = touchVelocity = 0;
+      touchTracking = touchDragging = false;
+      touchAxis = null;
     },
     touchCancel() {
-      touchDelta = 0;
+      touchDelta = touchVelocity = 0;
+      touchTracking = touchDragging = false;
+      touchAxis = null;
+    },
+    blocksClick() {
+      return galleryInput() && acceptsInput() && (suppressClick || touchDragging || moving());
+    },
+    consumeClick() {
+      suppressClick = false;
     },
     key(event) {
       if (event.metaKey || event.ctrlKey || event.altKey || (event.shiftKey && event.key !== ' '))
@@ -470,6 +631,10 @@ export function createVirtualScroll({
       push(amount, 0, event);
     },
     pointerDown(event) {
+      if (galleryInput()) {
+        suppressClick = (!event.target || client.contains(event.target)) && moving();
+        if (suppressClick) stopMomentum();
+      }
       downX = event.clientX;
       downY = event.clientY;
       pointerDelta = 0;
@@ -484,6 +649,7 @@ export function createVirtualScroll({
         const cross = axis === 'x' ? dy : dx;
         if (primary <= 10 || primary <= cross) return false;
         dragging = true;
+        if (galleryInput()) suppressClick = galleryMotion = true;
         pointerPosition = pointerCoordinate(event);
       }
       event.preventDefault();
@@ -522,6 +688,8 @@ export function createVirtualScroll({
         pendingWheel = steppedWheel = touchDelta = pointerDelta = delta = 0;
         wheelEvent = null;
         hub?.cancel(client);
+        suppressClick = false;
+        if (galleryInput() && galleryMotion) stopMomentum();
       }
     },
     destroy() {
@@ -551,6 +719,9 @@ export function createVirtualScroll({
     get delta() {
       return delta;
     },
+    get dragged() {
+      return dragging || touchDragging || (galleryInput() && (suppressClick || moving()));
+    },
     get progress() {
       return progress();
     },
@@ -570,5 +741,11 @@ export function createVirtualScroll({
 }
 
 export function createVerticalScroll({ outer, inner, ...options } = {}) {
-  return createVirtualScroll({ ...options, container: outer, inner, axis: 'y' });
+  return createVirtualScroll({
+    inputProfile: 'case',
+    ...options,
+    container: outer,
+    inner,
+    axis: 'y',
+  });
 }

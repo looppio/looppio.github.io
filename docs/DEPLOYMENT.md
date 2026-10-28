@@ -2,14 +2,14 @@
 
 ## Current setup
 
-| Item             | State                                                                             |
-| ---------------- | --------------------------------------------------------------------------------- |
-| Canonical source | [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io), `main` |
-| Published files  | `gh-pages`, root directory                                                        |
-| Confirmed demo   | [https://looppio.github.io/](https://looppio.github.io/)                          |
-| Custom domain    | `alextish.com` prepared; connection and HTTPS verification pending                |
-| Domain config    | `pages.config.json` has `customDomain: "alextish.com"`; activation is pending     |
-| Validation       | Local `npm run check`; the CI example is inactive                                 |
+| Item             | State                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| Canonical source | [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io), `main`         |
+| Published files  | `gh-pages`, root directory                                                                |
+| Pages address    | [looppio.github.io](https://looppio.github.io/), redirects to configured domain           |
+| Custom domain    | `alextish.com` configured; public DNS resolves; GitHub verification/HTTPS pending         |
+| Domain config    | `pages.config.json` has `customDomain: "alextish.com"`; nameservers changed to Cloudflare |
+| Validation       | Local `npm run check`; the CI example is inactive                                         |
 
 GitHub Pages is available for public repositories on GitHub Free. This portfolio needs no paid server or database. Domain registration and renewal remain separate. Current Pages limits include a 1 GB published site and a soft 100 GB monthly bandwidth allowance; check these again as media or traffic grows. [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
 
@@ -21,7 +21,7 @@ Use Node.js 24 from `.nvmrc`, npm, Git and ordinary repository-write authenticat
 
 Repository Settings → Pages must use **Deploy from a branch**, **gh-pages**, **/ (root)**. The YAML in `docs/ci-check.example.yml` is documentation only, not active CI. GitHub's deployment status does not replace the project's checks.
 
-`pages.config.json` records the repository, source and publishing branches, and custom domain. The current configuration uses `customDomain: "alextish.com"`. This prepares the release CNAME; DNS activation and HTTPS must still be verified before the domain is announced as live. Do not change it merely to label a local preview.
+`pages.config.json` records the repository, source and publishing branches, and custom domain. The current configuration uses `customDomain: "alextish.com"`. The release CNAME is deployed and public DNS has the GitHub records. GitHub domain verification and HTTPS must still finish before the domain is announced as live. The default Pages hostname redirects to the custom domain during this transition; it is not a working fallback if a resolver still has the old DNS state. Do not change it merely to label a local preview.
 
 ## Preview a candidate
 

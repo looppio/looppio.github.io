@@ -23,6 +23,7 @@ import { categories, filterProjects, groupedProjects } from './projectTaxonomy.j
 import { readTags, readAllGallery, selectionUrl, visibleSelection } from './portfolioSelection.js';
 import { projectLabel } from './projectLabels.js';
 import { readRoute } from './portfolioRoutes.js';
+import { restoreFocusAfterLens } from './lensFocus.js';
 const links = {
   linkedin: 'https://www.linkedin.com/in/atishenko/',
   telegram: 'https://t.me/l91111',
@@ -100,9 +101,15 @@ export function App() {
   const [filtersSeen, setFiltersSeen] = useState(readFiltersSeen);
   const filterTrigger = useRef(null);
   const cvTrigger = useRef(null);
+  const cancelFocusReturn = useRef(null);
+  const restoreChromeFocus = (target) => {
+    cancelFocusReturn.current?.();
+    cancelFocusReturn.current = restoreFocusAfterLens(target);
+  };
   const closeOverlay = () => {
     setOverlay(null);
-    if (overlay === 'cv') cvTrigger.current?.focus({ preventScroll: true });
+    if (overlay === 'cv') restoreChromeFocus(cvTrigger.current);
+    if (filtersOpen) restoreChromeFocus(filterTrigger.current);
   };
   const visibleProjects = useMemo(
     () => visibleSelection(projects, selected, view, allGallery),
@@ -122,6 +129,7 @@ export function App() {
     history.pushState({}, '', selectionUrl(location.pathname, next, location.search, false));
   };
   const openProject = (p) => {
+    cancelFocusReturn.current?.();
     setOverlay(null);
     setLightbox(null);
     setProject(p);
@@ -148,6 +156,7 @@ export function App() {
     } else setPhase('settled');
   };
   const changeView = (next, tags = selected, all = allGallery) => {
+    cancelFocusReturn.current?.();
     setOverlay(null);
     setProject(null);
     setPhase('settled');
@@ -173,15 +182,16 @@ export function App() {
     setSelected([]);
     setAllGallery(true);
     changeView('featured', [], true);
-    filterTrigger.current?.focus();
+    restoreChromeFocus(filterTrigger.current);
   };
   const showFeaturedCases = () => {
     setSelected([]);
     setAllGallery(false);
     changeView('featured', [], false);
-    filterTrigger.current?.focus();
+    restoreChromeFocus(filterTrigger.current);
   };
   const toggleOverlay = (next) => {
+    cancelFocusReturn.current?.();
     if (next === 'filters' && !filtersSeen) {
       setFiltersSeen(true);
       rememberFiltersSeen();
@@ -189,7 +199,12 @@ export function App() {
     setOverlay((current) => (current === next ? null : next));
   };
   useEffect(() => {
+    if (overlay || project) cancelFocusReturn.current?.();
+  }, [overlay, project]);
+  useEffect(() => () => cancelFocusReturn.current?.(), []);
+  useEffect(() => {
     const pop = () => {
+      cancelFocusReturn.current?.();
       const r = route();
       setSelected(readTags(location.search));
       setAllGallery(readAllGallery(location.search));
@@ -231,9 +246,7 @@ export function App() {
         e.preventDefault();
         setLightbox(null);
       } else if (overlay) {
-        setOverlay(null);
-        if (filtersOpen) filterTrigger.current?.focus();
-        if (overlay === 'cv') cvTrigger.current?.focus({ preventScroll: true });
+        closeOverlay();
       }
     };
     window.addEventListener('keydown', key);
@@ -259,122 +272,152 @@ export function App() {
           onTransitionEnd={onTransitionEnd}
           hovered={hovered}
         />
-        <header className="site-header" inert={project ? true : undefined} aria-hidden={!!project}>
-          <div className="header-blur" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </div>
-          <div className="header-inner">
-            <a
-              className="brand"
-              href={href('/')}
-              onClick={(e) => {
-                e.preventDefault();
-                changeView('featured');
-              }}
-            >
-              Oleksii Tyshchenko
-            </a>
-            <nav className="header-nav" aria-label="Project views">
+        <div className="site-chrome">
+          <header
+            className="site-header"
+            inert={project ? true : undefined}
+            aria-hidden={!!project}
+          >
+            <div className="header-blur" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </div>
+            <div className="header-inner">
               <a
+                className="brand"
                 href={href('/')}
-                aria-current={view === 'featured' ? 'page' : undefined}
                 onClick={(e) => {
                   e.preventDefault();
                   changeView('featured');
                 }}
               >
-                <StarFourIcon
-                  weight={view === 'featured' ? 'fill' : 'regular'}
-                  aria-hidden="true"
-                />
-                Featured
+                Oleksii Tyshchenko
               </a>
-              <a
-                href={href('/full')}
-                aria-current={view === 'full' ? 'page' : undefined}
-                onClick={(e) => {
-                  e.preventDefault();
-                  changeView('full');
-                }}
-              >
-                <SquaresFourIcon weight={view === 'full' ? 'fill' : 'regular'} aria-hidden="true" />
-                All cases
-              </a>
-              <button
-                ref={filterTrigger}
-                className={`icon-button filter-trigger ${hasFilters ? 'is-active' : ''}`}
-                aria-label={
-                  hasFilters
-                    ? `Filter projects, ${matchingProjects.length} ${matchingProjects.length === 1 ? 'match' : 'matches'}`
-                    : 'Filter projects'
-                }
-                aria-expanded={filtersOpen}
-                aria-controls="filters-panel"
-                onClick={() => toggleOverlay('filters')}
-                title="Filter projects"
-              >
-                <FunnelSimpleIcon aria-hidden="true" />
-                {hasFilters && <span className="filter-badge">{selected.length || 1}</span>}
-                {!hasFilters && !filtersSeen && (
-                  <span className="filter-attention-dot" aria-hidden="true" />
-                )}
-              </button>
-            </nav>
-            <div className="header-actions">
-              <a
-                className="header-link"
-                href="#profile"
-                aria-expanded={overlay === 'profile'}
-                aria-controls="profile-panel"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toggleOverlay('profile');
-                }}
-              >
-                About
-              </a>
-              <a
-                className="header-link"
-                href="#contact"
-                aria-expanded={overlay === 'contact'}
-                aria-controls="contact-panel"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toggleOverlay('contact');
-                }}
-              >
-                Contact
-              </a>
-              <button
-                ref={cvTrigger}
-                className="action-button primary-action"
-                aria-label="Choose a CV"
-                aria-expanded={overlay === 'cv'}
-                aria-controls="cv-panel"
-                onClick={() => toggleOverlay('cv')}
-              >
-                <DownloadSimpleIcon aria-hidden="true" />
+              <nav className="header-nav" aria-label="Project views">
+                <a
+                  href={href('/')}
+                  aria-current={view === 'featured' ? 'page' : undefined}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    changeView('featured');
+                  }}
+                >
+                  <StarFourIcon
+                    weight={view === 'featured' ? 'fill' : 'regular'}
+                    aria-hidden="true"
+                  />
+                  Featured
+                </a>
+                <a
+                  href={href('/full')}
+                  aria-current={view === 'full' ? 'page' : undefined}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    changeView('full');
+                  }}
+                >
+                  <SquaresFourIcon
+                    weight={view === 'full' ? 'fill' : 'regular'}
+                    aria-hidden="true"
+                  />
+                  All cases
+                </a>
+                <button
+                  ref={filterTrigger}
+                  className={`icon-button filter-trigger ${hasFilters ? 'is-active' : ''}`}
+                  aria-label={
+                    hasFilters
+                      ? `Filter projects, ${matchingProjects.length} ${matchingProjects.length === 1 ? 'match' : 'matches'}`
+                      : 'Filter projects'
+                  }
+                  aria-expanded={filtersOpen}
+                  aria-controls="filters-panel"
+                  onClick={() => toggleOverlay('filters')}
+                  title="Filter projects"
+                >
+                  <FunnelSimpleIcon aria-hidden="true" />
+                  {hasFilters && <span className="filter-badge">{selected.length || 1}</span>}
+                  {!hasFilters && !filtersSeen && (
+                    <span className="filter-attention-dot" aria-hidden="true" />
+                  )}
+                </button>
+              </nav>
+              <div className="header-actions">
+                <a
+                  className="header-link"
+                  href="#profile"
+                  aria-expanded={overlay === 'profile'}
+                  aria-controls="profile-panel"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    toggleOverlay('profile');
+                  }}
+                >
+                  About
+                </a>
+                <a
+                  className="header-link"
+                  href="#contact"
+                  aria-expanded={overlay === 'contact'}
+                  aria-controls="contact-panel"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    toggleOverlay('contact');
+                  }}
+                >
+                  Contact
+                </a>
+                <button
+                  ref={cvTrigger}
+                  className="action-button primary-action"
+                  aria-label="Choose a CV"
+                  aria-expanded={overlay === 'cv'}
+                  aria-controls="cv-panel"
+                  onClick={() => toggleOverlay('cv')}
+                >
+                  <DownloadSimpleIcon aria-hidden="true" />
+                  <span>
+                    <span className="download-word">Download </span>CV
+                  </span>
+                </button>
+              </div>
+            </div>
+            {hasFilters && !overlay && (
+              <div className="filter-summary">
                 <span>
-                  <span className="download-word">Download </span>CV
+                  {view === 'full'
+                    ? `${matchingProjects.length} ${matchingProjects.length === 1 ? 'match' : 'matches'} highlighted`
+                    : `${visibleProjects.length} of ${projects.length} cases`}
                 </span>
-              </button>
-            </div>
-          </div>
-          {hasFilters && !overlay && (
-            <div className="filter-summary">
+                <button onClick={clearFilters}>
+                  Clear filters <XIcon size={12} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+          </header>
+          <footer
+            className="site-footer"
+            inert={project ? true : undefined}
+            aria-hidden={!!project}
+          >
+            <span>
+              <img
+                className="footer-portrait"
+                src="/assets/oleksii-portrait-96.webp"
+                alt=""
+                width="20"
+                height="20"
+              />
               <span>
-                {view === 'full'
-                  ? `${matchingProjects.length} ${matchingProjects.length === 1 ? 'match' : 'matches'} highlighted`
-                  : `${visibleProjects.length} of ${projects.length} cases`}
+                Designed and built by{' '}
+                <a href={links.linkedin} target="_blank" rel="noreferrer">
+                  Oleksii Tyshchenko <ArrowUpRightIcon aria-hidden="true" />
+                </a>
               </span>
-              <button onClick={clearFilters}>
-                Clear filters <XIcon size={12} aria-hidden="true" />
-              </button>
-            </div>
-          )}
-        </header>
+            </span>
+          </footer>
+        </div>
         {filtersOpen && !project && (
           <section
             className="center-panel filters-panel"
@@ -385,14 +428,7 @@ export function App() {
           >
             <div className="filters-heading">
               <h2>Explore by category</h2>
-              <button
-                className="icon-button"
-                aria-label="Close filters"
-                onClick={() => {
-                  setOverlay(null);
-                  filterTrigger.current?.focus();
-                }}
-              >
+              <button className="icon-button" aria-label="Close filters" onClick={closeOverlay}>
                 <XIcon aria-hidden="true" />
               </button>
             </div>
@@ -446,13 +482,7 @@ export function App() {
                   : `Show all ${projects.length} ${projects.length === 1 ? 'case' : 'cases'}`}{' '}
                 <ArrowRightIcon aria-hidden="true" />
               </button>
-              <button
-                className="action-button primary-action"
-                onClick={() => {
-                  setOverlay(null);
-                  filterTrigger.current?.focus();
-                }}
-              >
+              <button className="action-button primary-action" onClick={closeOverlay}>
                 {allGallery
                   ? `Keep all ${projects.length} ${projects.length === 1 ? 'case' : 'cases'}`
                   : view === 'full'
@@ -567,7 +597,7 @@ export function App() {
                   className="cv-download label"
                   aria-label="Choose a CV"
                   aria-controls="cv-panel"
-                  onClick={() => setOverlay('cv')}
+                  onClick={() => toggleOverlay('cv')}
                 >
                   Download CV <DownloadSimpleIcon aria-hidden="true" />
                 </button>
@@ -591,23 +621,6 @@ export function App() {
             )}
           </section>
         )}
-        <footer className="site-footer" inert={project ? true : undefined} aria-hidden={!!project}>
-          <span>
-            <img
-              className="footer-portrait"
-              src="/assets/oleksii-portrait-96.webp"
-              alt=""
-              width="20"
-              height="20"
-            />
-            <span>
-              Designed and built by{' '}
-              <a href={links.linkedin} target="_blank" rel="noreferrer">
-                Oleksii Tyshchenko <ArrowUpRightIcon aria-hidden="true" />
-              </a>
-            </span>
-          </span>
-        </footer>
       </main>
       {project && (
         <div inert={lightbox ? true : undefined}>

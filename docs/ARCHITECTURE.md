@@ -18,6 +18,7 @@ This is a client-rendered React application built by Vite. There is no React Rou
 | `src/reference/CaseView.jsx` and `case.css`                                                    | Case DOM, copy, media controls, grouped layouts and case navigation.                             |
 | `src/reference/scroll.js`                                                                      | Virtual scrolling, wrapping, input and per-item parking.                                         |
 | `src/reference/PostProcess.js`, `shaders.js`, `PointerTrail.js`, `FullField.js`, `PageWipe.js` | Lens, refraction, pointer trail, archive surfaces and transitions.                               |
+| `src/reference/lensChrome.js`                                                                  | Lens contour clipping and covered navigation controls, shared with lens hit testing.             |
 | `src/BootLoader.jsx`, `boot-loader.css`, `src/reference/BootReveal.js`                         | First-load readiness, progress and the real scene entrance.                                      |
 | `src/ActionFeedback.jsx` and `action-feedback.css`                                             | Email-copy and CV-download feedback.                                                             |
 | `src/CVPicker.jsx` and `src/cvVariants.js`                                                     | CV selection in the shared lens, approved PDF paths and individual download filenames.           |
@@ -58,15 +59,25 @@ At release, measured loading strips hand off to existing scene planes. The galle
 
 About, Contact, CV selection and category filters share the source lens. Their DOM content stays hidden until the lens encloses it and two correctly sized rendered frames agree. Resizing or switching an overlay invalidates this readiness. Both archive DOM and GPU labels stay hidden beneath a lens panel.
 
+Header, navigation dock and author footer share the `.site-chrome` wrapper. `lensChrome.js` cuts the lens footprint, including its refractive rim, out of this DOM layer with a 128-point contour. Its coordinates use the shader's width-based radius, center, breath, lobes and squash; it must track opening, retargeting and closing rather than a fixed CSS circle. The same field checks pointer hits. Covered regions cannot activate navigation, while visible portions remain usable. Cached control bounds determine which fully covered links and buttons become inert for keyboard and accessibility navigation; closing and disposal restore their original inert state. Invalidate those measurements when layout or navigation changes.
+
+Keep card activation blocked while the lens is visibly closing, even after React has removed the panel. Panels retain their own close button, bounded viewport height and usable internal scrolling. The CV list uses non-shrinking grid rows so short windows can scroll its options.
+
 ## Rendering budget
 
 `renderBudget.js` selects the mobile budget for widths up to 767 CSS pixels or a coarse pointer. Main-scene DPR is capped at 1.5 and further limited to approximately one million render pixels; desktop DPR remains capped at 2. The mobile main renderer disables antialiasing and its lens render target does not allocate the extra depth buffer. Mobile frame scheduling targets 60 frames/s with a running deadline, preserving elapsed animation time across skipped callbacks. These are work budgets, not measured speed guarantees.
 
 When the lens is closed and the pointer effect is inactive, postprocessing uses a simple copy material instead of evaluating the lens shader. The full effect remains available for interaction. Card hit polygons are cached against geometry and deformation state, so unchanged cards do not rebuild the same projected polygon every frame. Hidden tabs still stop the scene loop and media playback.
 
+The planned v1.2.0 lens shader also skips chromatic sampling where the result is already determined: an entirely opaque interior returns the backdrop, and pixels outside both the distortion envelope and antialiased edge sample the scene once. These returns require an inactive pointer field. Compute `fwidth` and coverage before divergent branches; the refractive ring and active pointer equations remain unchanged. The contour helper does no per-frame bounding-box reads after its cache is populated, and the scene stops calling it once the closed clip has been restored. Browser clipping and compositing still cost work; do not infer GPU speed from the helper's arithmetic or unit tests.
+
 ## Case media and scrolling
 
 Case scrolling is virtual. A group is one top-level scroll item, while its image and video children remain individual measured surfaces. Each rendered leaf has a unique `data-case-slot` derived from its original or repeated render key and child index. The mesh registry includes that slot so repeated sources do not collide.
+
+Input is owned by one shared hub per window. The gallery and case viewers use explicit input profiles: changes to gallery touch or wheel response must not silently change the case controls. Gallery touch follows a locked dominant axis after a small movement threshold and uses bounded velocity-based release. Mouse-wheel notches use a bounded queue with reversal braking; fractional trackpad input retains its separate path. Decay follows elapsed frame time, with bounded catch-up after a stalled frame. A pointer tap during gallery momentum stops motion and consumes that activation; a subsequent settled tap can open the card. Keyboard activation and navigation controls retain their ordinary behavior. Disabling or destroying a controller cancels its owned gesture and pending input.
+
+Gallery touch bounds use the smallest positive visual-viewport, document and measured-container dimensions, so browser chrome and short windows do not inflate release distance. Keep this input budget independent from the canvas resolution budget. The case profile retains its existing wheel and touch response.
 
 The `_parked` state can live on an ancestor group. Visibility, playback and focus calculations must account for it. Parked case media pause playback and skip bounding-box measurement until they become active. Focusing a child in a tall group first restores the group's virtual position, then brings that child into view. Repeated loop copies are excluded from accessibility navigation and tab order.
 
@@ -74,8 +85,9 @@ Videos reserve their dimensions and retain a poster until a decoded frame and po
 
 ## Responsive and interaction boundaries
 
-- Header views and filters become a bottom dock at widths up to 767px. The author footer is hidden there.
+- Header views and filters become a bottom dock at widths up to 1050px, or up to 1440px with a coarse pointer, including large-tablet landscape widths. The author footer is hidden in those layouts; the header does not gain a second navigation row on tablets.
 - Case layout and grouped mobile pairs switch at 649px. These are distinct layout decisions, not one global breakpoint.
+- Small-screen typography still switches at 767px, independently of dock layout and the rendering budget.
 - Archive hover previews are disabled at narrow widths, for coarse pointers and for touch input. Links remain usable.
 - Case content, captions and photographs retain their original colors. Lens adaptation must not invert the source media.
 

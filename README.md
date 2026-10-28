@@ -2,9 +2,9 @@
 
 A React and Three.js portfolio with an animated sky, WebGL gallery, category filters, case studies and five downloadable CV versions.
 
-- **Live demo:** [looppio.github.io](https://looppio.github.io/)
+- **Pages address:** [looppio.github.io](https://looppio.github.io/) (redirects to the configured custom domain)
 - **Source:** [looppio/looppio.github.io](https://github.com/looppio/looppio.github.io), branch `main`
-- **Planned domain:** `alextish.com`, with `www` redirecting to the apex. Domain setup is prepared and activation is pending; the demo remains the confirmed address. Registration stays at Vicetemple, with Cloudflare Free selected for DNS.
+- **Custom domain:** `alextish.com`. GitHub Pages and Cloudflare Free DNS are configured; public DNS records resolve correctly, while GitHub verification and HTTPS issuance are still pending. The Pages address redirects to this domain, so it is not an independent fallback during propagation. Registration stays at Vicetemple.
 
 The current repository is the canonical project. The Downloads handoff is a dated snapshot, not a synchronized working copy. Keep private collection material and archives outside this repository.
 

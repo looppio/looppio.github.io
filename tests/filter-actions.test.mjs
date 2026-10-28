@@ -574,3 +574,76 @@ test('storage restrictions use the session fallback or safe in-memory dismissal'
   );
   blocked.cleanup();
 });
+
+test('one viewport chrome layer contains header and footer while lens panels stay outside its clipping scope', () => {
+  const f = fixture('/');
+  let tree = f.render();
+  const assertChrome = () => {
+    const wrappers = nodes(tree).filter((node) => hasClass(node, 'site-chrome'));
+    assert.equal(wrappers.length, 1);
+    for (const className of ['site-header', 'site-footer']) {
+      const elements = nodes(wrappers[0]).filter((node) => hasClass(node, className));
+      assert.equal(elements.length, 1);
+      assert.equal(elements[0].props.inert, undefined, 'uncovered chrome remains interactive');
+      assert.equal(elements[0].props['aria-hidden'], false);
+    }
+    assert.equal(
+      nodes(wrappers[0]).some((node) => hasClass(node, 'center-panel')),
+      false,
+    );
+    return wrappers[0];
+  };
+  let chrome = assertChrome();
+  for (const name of ['profile', 'contact', 'cv', 'filters']) {
+    const trigger = nodes(chrome).find((node) => node.props?.['aria-controls'] === `${name}-panel`);
+    trigger.props.onClick({ preventDefault() {} });
+    tree = f.render();
+    assert.equal(f.gallery(tree).props.overlay, name, 'uncovered controls can retarget the lens');
+    const panel = nodes(tree).find((node) => node.props?.id === `${name}-panel`);
+    assert.ok(panel);
+    assert.ok(nodes(panel).some((node) => /^Close /.test(node.props?.['aria-label'] || '')));
+    chrome = assertChrome();
+  }
+  f.cleanup();
+});
+
+test('CV and filter close wait for covered triggers and cancel a stale return when another panel opens', () => {
+  for (const name of ['cv', 'filters']) {
+    const f = fixture('/');
+    let tree = f.render();
+    const trigger = () =>
+      nodes(tree).find((node) => node.props?.['aria-controls'] === `${name}-panel`);
+    trigger().props.onClick();
+    tree = f.render();
+    const covered = trigger().props.ref.current;
+    covered.inert = true;
+    nodes(tree)
+      .find(
+        (node) =>
+          node.props?.['aria-label'] === `Close ${name === 'cv' ? 'CV selection' : 'filters'}`,
+      )
+      .props.onClick();
+    tree = f.render();
+    assert.equal(f.focuses(), 0);
+    assert.equal(f.gallery(tree).props.overlay, null);
+    covered.inert = false;
+    f.listeners.get('portfolio-tick')();
+    assert.equal(f.focuses(), 1);
+    assert.equal(f.listeners.has('portfolio-tick'), false);
+
+    trigger().props.onClick();
+    tree = f.render();
+    trigger().props.ref.current.inert = true;
+    f.listeners.get('keydown')({ key: 'Escape' });
+    tree = f.render();
+    assert.equal(f.listeners.has('portfolio-tick'), true);
+    nodes(tree)
+      .find((node) => node.props?.['aria-controls'] === 'contact-panel')
+      .props.onClick({ preventDefault() {} });
+    tree = f.render();
+    assert.equal(f.gallery(tree).props.overlay, 'contact');
+    assert.equal(f.listeners.has('portfolio-tick'), false);
+    assert.equal(f.focuses(), 1, 'opening a new panel cancels the old return request');
+    f.cleanup();
+  }
+});
