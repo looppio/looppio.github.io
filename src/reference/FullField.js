@@ -107,16 +107,17 @@ function textUniforms(texture) {
 }
 
 /**
- * Source Ko canvas fallback for the Full index. Labels live in the same scene
- * as the rail so page wipe and lens sample their actual distorted pixels.
- * DOM buttons remain the layout and accessible click/focus targets.
+ * Native Full index pills at rest, with a cached source Ko raster for effects.
+ * During deformation, labels live in the rail scene so wipes and lenses sample
+ * their actual distorted pixels. DOM buttons always retain layout and input.
  *
  * new FullField(scene, camera, renderer)
- * update({elements, rail, hovered, presence, dt, enabled, alpha, blast})
+ * update({elements, rail, hovered, presence, dt, enabled, alpha, blast, forceRaster})
  * - elements: current buttons; text from data-title or textContent.
  * - rail: the actual tilted Three mesh, not its approximate DOM rectangle.
  * - presence: source rail bindAlpha*reveal (default rail's reveal).
  * - blast: optional growing case mesh; holds the first field still.
+ * - forceRaster: active external lens, pointer field, wipe or transition.
  */
 export default class FullField {
   constructor(scene, camera, renderer) {
@@ -172,6 +173,7 @@ export default class FullField {
       padX: 0,
       padY: 0,
       signature: '',
+      rasterVisible: false,
       original: {
         color: element.style.color,
         fill: element.style.webkitTextFillColor,
@@ -183,6 +185,8 @@ export default class FullField {
   }
 
   _showDOM(entry, show) {
+    if (entry.domVisible === show) return;
+    entry.domVisible = show;
     const element = entry.element;
     if (show) {
       element.style.color = entry.original.color;
@@ -194,6 +198,25 @@ export default class FullField {
       element.style.webkitTextFillColor = 'transparent';
       element.style.textShadow = 'none';
       element.classList.add('gl-text-ready');
+    }
+  }
+
+  _rasterPixelRatio() {
+    // Small cached pill textures can retain native detail without increasing
+    // the full-screen framebuffer or its mobile fill-rate budget.
+    const native = Number(this.document.defaultView?.devicePixelRatio ?? 1);
+    return Math.min(3, Math.max(2, Number.isFinite(native) ? native : 1));
+  }
+
+  withRasterSnapshot(draw) {
+    // React may have removed the old index before its mode update reaches the
+    // scene. Use the last prepared geometry rather than re-reading that DOM.
+    const visibility = [...this.entries.values()].map((entry) => [entry, entry.mesh.visible]);
+    try {
+      for (const [entry] of visibility) entry.mesh.visible = entry.rasterVisible;
+      return draw();
+    } finally {
+      for (const [entry, visible] of visibility) entry.mesh.visible = visible;
     }
   }
 
@@ -306,7 +329,7 @@ export default class FullField {
   _raster(entry, rect, css, text, chip = null) {
     const fontCSS = chip?.css || css;
     const fontSize = parseFloat(fontCSS.fontSize) || 16;
-    const pixelRatio = Math.min(2, this.renderer.getPixelRatio?.() || 1);
+    const pixelRatio = this._rasterPixelRatio();
     const padX = Math.ceil(fontSize * 0.35),
       padY = Math.ceil(fontSize * 0.25);
     const planeWidth = rect.width + padX * 2,
@@ -319,7 +342,7 @@ export default class FullField {
       entry.canvas.height = canvasHeight;
     }
     const context = entry.context;
-    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.setTransform(canvasWidth / planeWidth, 0, 0, canvasHeight / planeHeight, 0, 0);
     context.clearRect(0, 0, planeWidth, planeHeight);
     if (chip) {
       context.beginPath();
@@ -521,6 +544,7 @@ export default class FullField {
     alpha = 1,
     blast = null,
     bulge = 0,
+    forceRaster = false,
   } = {}) {
     if (this.disposed) return;
     const buttons = [...elements];
@@ -550,12 +574,14 @@ export default class FullField {
       if (!entry && enabled) entry = this._create(element);
       if (!entry) continue;
       if (!enabled || !element.isConnected || width <= 0 || height <= 0) {
+        entry.rasterVisible = false;
         entry.mesh.visible = false;
         this._showDOM(entry, true);
         continue;
       }
       const rect = element._vrect || element.getBoundingClientRect();
       if (!rect.width || !rect.height) {
+        entry.rasterVisible = false;
         entry.mesh.visible = false;
         this._showDOM(entry, true);
         continue;
@@ -609,6 +635,7 @@ export default class FullField {
       uniforms.u_alpha.value = alpha;
       const viewport = this._viewport(element, width, height, viewportCache);
       if (viewport?.hidden) {
+        entry.rasterVisible = false;
         entry.mesh.visible = false;
         this._showDOM(entry, true);
         continue;
@@ -653,9 +680,21 @@ export default class FullField {
         bounds.bottom < visibleArea.top - 2 ||
         bounds.top > visibleArea.bottom + 2;
       entry.culled = outside;
-      entry.mesh.visible = alpha > 0.001 && !outside;
-      this._showDOM(entry, false);
-      if (!entry.mesh.visible) continue;
+      entry.rasterVisible = alpha > 0.001 && !outside;
+      // Keep the source field until its decaying deformation is negligible;
+      // merely leaving the rail must not snap a moving pill back to DOM.
+      const native =
+        !forceRaster &&
+        alpha >= 1 &&
+        !blastMesh &&
+        Math.abs(bulge) <= 0.0005 &&
+        amount <= 0.0005 &&
+        uniforms.u_avoidP.value <= 0.0005 &&
+        uniforms.u_avoidP2.value <= 0.0005 &&
+        uniforms.u_maskShape.value.z <= 0.0005;
+      entry.mesh.visible = entry.rasterVisible && !native;
+      this._showDOM(entry, native);
+      if (!entry.rasterVisible) continue;
       // Offscreen rows retain the live field state, but do not rasterize,
       // upload or draw until they approach the viewport.
       const css = this.document.defaultView.getComputedStyle(element);
@@ -678,7 +717,7 @@ export default class FullField {
         css.letterSpacing,
         css.textTransform,
         chip?.signature,
-        this.renderer.getPixelRatio?.(),
+        this._rasterPixelRatio(),
       ].join('|');
       if (
         entry.dirty ||

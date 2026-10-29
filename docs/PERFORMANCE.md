@@ -37,6 +37,16 @@ On 28 October, a local in-app-browser check at 390 × 580 showed the lens coveri
 
 Chrome's iPad Pro 13-inch preset was checked at 1032 × 1376 CSS pixels in portrait. The coarse-pointer dock range was then extended to 1440px to include its 1376 × 1032 landscape viewport; the rebuilt landscape layout was rechecked with its bottom dock visible. Horizontal native-UI drags moved the ribbon in the portrait profile; a 390 × 580 phone-profile drag moved cards without opening a case. These are desktop emulation checks, not physical iPad measurements. These input checks used Chrome on a Mac and do not reproduce physical iOS touch hardware.
 
+## 29 October: content clarity
+
+The old one-megapixel touch budget could reduce a 1032 × 1376 tablet below DPR 1, and Full-index labels inherited that resolution. The current budget caps mobile DPR at 2 and the framebuffer at two million pixels. An iPhone 13-sized 390 × 844 viewport now uses 780 × 1688 render pixels rather than 585 × 1266; it still stays below native DPR 3.
+
+Idle Full-index chips use their native DOM text, fill and icons. Their WebGL equivalents remain cached for hover deformation, pointer refraction, lens effects and page transitions. Raster textures use an independent 2–3× text scale, and fractional canvas dimensions use the exact texture-to-plane scale. This improves text sampling without increasing the full-screen effects budget to native phone DPR.
+
+Frames without a lens, pointer field or page wipe now render directly to the screen, removing the inactive full-screen copy pass. A view change explicitly captures a fresh scene with cached index rasters before the wipe begins. Active effects still use the postprocess pipeline. Render targets round pixel sizes down exactly as Three's drawing buffer does, avoiding fractional-DPR resampling. Static covers use mipmapped filtering so their configured anisotropy can work; video textures remain unchanged.
+
+These changes remove a source of softness and some unnecessary GPU work. Raising the mobile framebuffer increases active-effect pixel work, so this is not a measured phone-FPS improvement. Physical iPhone/Telegram verification is still required. The approved Dexsport preview itself is 960 × 540; improving the renderer cannot recover detail missing from that source, and it has not been artificially upscaled.
+
 ## Current limits
 
 Startup and mobile rendering changes are implemented in v1.1.0, with further interaction changes in v1.2.0. Comparable deployed measurements and physical-device verification are still pending. Compare a freshly deployed candidate with this baseline under the same conditions before reporting improvement. The baseline's duplicate requests or timing must not be presented as measurements of an untested later build.

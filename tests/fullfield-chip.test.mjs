@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import FullField, { FULL_FIELD } from '../src/reference/FullField.js';
 
-function fixture({ dpr = 2, path = true } = {}) {
+function fixture({ dpr = 2, nativeDpr = dpr, path = true } = {}) {
   const ops = [],
     classes = new Set(),
     vars = {
@@ -145,6 +145,7 @@ function fixture({ dpr = 2, path = true } = {}) {
   const doc = {
     createElement: () => ({ width: 0, height: 0, getContext: () => ctx }),
     defaultView: {
+      devicePixelRatio: nativeDpr,
       getComputedStyle: (e) => e.computed,
       Path2D: path
         ? class {
@@ -187,6 +188,9 @@ function fixture({ dpr = 2, path = true } = {}) {
     label,
     svg,
     field,
+    rail,
+    viewport,
+    view: doc.defaultView,
     update,
     dispose,
     entry: () => field.entries.get(element),
@@ -311,5 +315,160 @@ test('moving the scrollport preserves relative layout and disabled GPU restores 
   assert.equal(f.classes.has('gl-text-ready'), false);
   assert.equal(f.element.style.color, 'white');
   assert.equal(f.css.backgroundColor, f.vars['--case-fill']);
+  f.dispose();
+});
+
+test('idle pills use native paint while keeping current raster, opacity and geometry for effects', () => {
+  const f = fixture({ dpr: 1 });
+  const idle = { rail: null, presence: 0 };
+  f.css.opacity = '0.72';
+  f.update(idle);
+  const entry = f.entry();
+  assert.equal(entry.mesh.visible, false);
+  assert.equal(entry.rasterVisible, true);
+  assert.equal(f.classes.has('gl-text-ready'), false);
+  assert.equal(f.element.style.color, 'white');
+  assert.equal(f.css.backgroundColor, f.vars['--case-fill']);
+  assert.equal(entry.material.uniforms.u_alpha.value, 0.72);
+  assert.ok(f.ops.some((op) => op[0] === 'text' && op[1] === 'Ndax'));
+  assert.equal(f.element.style.pointerEvents, undefined);
+  assert.equal(f.element.tabIndex, undefined);
+
+  const version = entry.texture.version;
+  const y = entry.mesh.position.y;
+  f.state.top -= 30;
+  f.update(idle);
+  assert.ok(entry.mesh.position.y > y);
+  assert.equal(entry.texture.version, version);
+  f.vars['--case-fill'] = 'rgba(255,255,255,.36)';
+  f.update(idle);
+  assert.ok(entry.texture.version > version);
+  assert.equal(entry.mesh.visible, false);
+  assert.equal(f.classes.has('gl-text-ready'), false);
+  f.dispose();
+});
+
+test('external effects switch the whole pill to cached GPU paint and return to native when settled', () => {
+  const f = fixture();
+  const idle = { rail: null, presence: 0 };
+  f.update(idle);
+  const entry = f.entry();
+  const version = entry.texture.version;
+  f.update({ ...idle, forceRaster: true });
+  assert.equal(entry.mesh.visible, true);
+  assert.equal(f.classes.has('gl-text-ready'), true);
+  assert.equal(f.element.style.color, 'transparent');
+  assert.equal(f.css.backgroundColor, 'transparent');
+  assert.equal(entry.texture.version, version);
+  f.update(idle);
+  assert.equal(entry.mesh.visible, false);
+  assert.equal(f.classes.has('gl-text-ready'), false);
+  assert.equal(entry.texture.version, version);
+  f.dispose();
+});
+
+test('rail and blast retain GPU paint until their residual field decays', () => {
+  for (const blast of [false, true]) {
+    const f = fixture();
+    f.update({ blast: blast ? f.rail : null });
+    assert.equal(f.entry().mesh.visible, true);
+    f.update({ rail: null, presence: 0 });
+    assert.equal(f.entry().mesh.visible, true);
+    assert.equal(f.classes.has('gl-text-ready'), true);
+    for (let i = 0; i < 120; i += 1) f.update({ rail: null, presence: 0 });
+    assert.equal(f.entry().mesh.visible, false);
+    assert.equal(f.classes.has('gl-text-ready'), false);
+    f.dispose();
+  }
+});
+
+test('partial alpha and active bulge cannot bypass GPU paint', () => {
+  const f = fixture();
+  for (const effect of [{ alpha: 0.5 }, { bulge: 0.1 }, { presence: 1, dt: 0 }]) {
+    f.update({ rail: null, presence: 0, ...effect });
+    assert.equal(f.entry().mesh.visible, true);
+    assert.equal(f.classes.has('gl-text-ready'), true);
+  }
+  f.dispose();
+});
+
+test('raster snapshots include cached idle pills after DOM unmount and restore visibility on failure', () => {
+  const f = fixture();
+  f.update({ rail: null, presence: 0 });
+  const entry = f.entry();
+  const position = entry.mesh.position.clone();
+  f.element.isConnected = false;
+  f.element.getBoundingClientRect = () => {
+    throw new Error('Unmounted DOM must not be measured for a snapshot');
+  };
+  assert.equal(
+    f.field.withRasterSnapshot(() => {
+      assert.equal(entry.mesh.visible, true);
+      assert.equal(f.classes.has('gl-text-ready'), false);
+      assert.deepEqual(entry.mesh.position, position);
+      return 'captured';
+    }),
+    'captured',
+  );
+  assert.equal(entry.mesh.visible, false);
+  assert.throws(
+    () =>
+      f.field.withRasterSnapshot(() => {
+        assert.equal(entry.mesh.visible, true);
+        throw new Error('render failed');
+      }),
+    /render failed/,
+  );
+  assert.equal(entry.mesh.visible, false);
+  assert.equal(f.classes.has('gl-text-ready'), false);
+  f.dispose();
+});
+
+test('disabled, clipped and hidden entries never reappear in a raster snapshot', () => {
+  for (const state of ['disabled', 'offscreen', 'hidden']) {
+    const f = fixture();
+    f.update({ rail: null, presence: 0 });
+    if (state === 'offscreen') f.state.top = 2000;
+    if (state === 'hidden') f.viewport.computed.visibility = 'hidden';
+    f.update({ rail: null, presence: 0, enabled: state !== 'disabled' });
+    f.field.withRasterSnapshot(() => assert.equal(f.entry().mesh.visible, false));
+    assert.equal(f.classes.has('gl-text-ready'), false);
+    f.dispose();
+  }
+});
+
+test('effect rasters retain 2–3x native detail independently of the framebuffer budget', () => {
+  for (const [dpr, nativeDpr, rasterDpr] of [
+    [1, 1, 2],
+    [0.84, 3, 3],
+    [1.5, 4, 3],
+  ]) {
+    const f = fixture({ dpr, nativeDpr });
+    f.update({ rail: null, presence: 0 });
+    assert.equal(f.entry().canvas.width, 184 * rasterDpr);
+    assert.equal(f.entry().canvas.height, 54 * rasterDpr);
+    f.dispose();
+  }
+});
+
+test('fractional pill dimensions use exact canvas-to-plane ratios and native DPR changes invalidate cache', () => {
+  const f = fixture({ dpr: 0.84, nativeDpr: 2.75 });
+  f.state.width = 170.25;
+  f.state.height = 44.2;
+  f.update({ rail: null, presence: 0 });
+  const entry = f.entry();
+  const planeWidth = f.state.width + entry.padX * 2;
+  const planeHeight = f.state.height + entry.padY * 2;
+  assert.equal(entry.canvas.width, Math.ceil(planeWidth * 2.75));
+  assert.equal(entry.canvas.height, Math.ceil(planeHeight * 2.75));
+  assert.deepEqual(
+    f.ops.find((op) => op[0] === 'transform'),
+    ['transform', entry.canvas.width / planeWidth, 0, 0, entry.canvas.height / planeHeight, 0, 0],
+  );
+  const version = entry.texture.version;
+  f.view.devicePixelRatio = 3;
+  f.update({ rail: null, presence: 0 });
+  assert.ok(entry.texture.version > version);
+  assert.equal(entry.canvas.width, Math.ceil(planeWidth * 3));
   f.dispose();
 });

@@ -57,7 +57,9 @@
   letter-spacing: -0.025em;
   opacity: 1;
   animation-name: case-link-in;
-  transition: background 0.18s;
+  /* DOM and WebGL hand paint ownership over in one frame. A background
+     transition here would briefly paint both fills, or leave neither. */
+  transition: none;
 }
 .full-index .case-link-label {
   min-width: 0;

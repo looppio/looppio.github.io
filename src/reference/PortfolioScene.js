@@ -207,7 +207,8 @@ export default class PortfolioScene {
         // Preserve the reference's direct color sampling. Decode and upload
         // before the reveal, rather than doing the first upload in its RAF.
         texture.colorSpace = THREE.NoColorSpace;
-        texture.minFilter = texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
         texture.needsUpdate = true;
         this.renderer.initTexture(texture);
@@ -437,6 +438,15 @@ export default class PortfolioScene {
       this.lensChrome.invalidate();
     if (this.state.project) void this.ensureCover(this.registry.get(this.state.project.id));
     if (prev.mode !== this.state.mode && this.post && !this.state.project) {
+      // Idle frames bypass the offscreen target. Capture the last scene now,
+      // including cached index labels whose DOM may already be unmounted.
+      const draw = () => {
+        this.renderer.setRenderTarget(this.post.target);
+        this.renderer.clear();
+        this.renderer.render(this.scene, this.camera);
+      };
+      if (this.fullField?.withRasterSnapshot) this.fullField.withRasterSnapshot(draw);
+      else draw();
       this.wipe.capture(this.post.target.texture);
       this.wipe.start();
     }
@@ -776,7 +786,7 @@ export default class PortfolioScene {
     };
   }
   resizeLabel(label, width, height, rem) {
-    const dpr = Math.min(2, this.dpr || 2),
+    const dpr = 2,
       pixelW = Math.max(1, Math.round(width * dpr)),
       pixelH = Math.max(1, Math.round(height * dpr));
     if (label.width === pixelW && label.height === pixelH && label.rem === rem) return;
@@ -1724,6 +1734,18 @@ export default class PortfolioScene {
       this.pauseCaseVideos();
       this.pausePreviewVideos();
     }
+    if (this.holeTween) {
+      const h = this.holeTween,
+        p = sourceEase(clamp((this.clock - h.start) / h.duration));
+      this.hole.p = mix(h.from, h.to, p);
+      this.hole.s = h.to ? 0 : -0.1 * p;
+      if (p >= 0.9999) {
+        this.hole.p = h.to;
+        this.holeTween = null;
+      }
+    }
+    const hole = this.syncHole(),
+      pointer = this.pointerTrail.tick(dt, this.hole.p);
     const fullButtons = Array.from(
         document.querySelectorAll('.full-index button[data-project-id]'),
       ),
@@ -1736,6 +1758,8 @@ export default class PortfolioScene {
       hovered: fullHovered,
       presence: this.railState.reveal,
       dt,
+      forceRaster:
+        this.bootReveal.pending || this.wipe.active || this.hole.p > 0 || pointer.ball > 0.001,
       enabled:
         !this.bootReveal.waiting &&
         this.state.mode === 'full' &&
@@ -1750,16 +1774,6 @@ export default class PortfolioScene {
       this.syncProgress(dt);
     }
     this.bootReveal.apply();
-    if (this.holeTween) {
-      const h = this.holeTween,
-        p = sourceEase(clamp((this.clock - h.start) / h.duration));
-      this.hole.p = mix(h.from, h.to, p);
-      this.hole.s = h.to ? 0 : -0.1 * p;
-      if (p >= 0.9999) {
-        this.hole.p = h.to;
-        this.holeTween = null;
-      }
-    }
 
     this.veil.material.uniforms.u_alpha.value =
       !this.bootReveal.pending &&
@@ -1768,21 +1782,7 @@ export default class PortfolioScene {
       this.state.mode === 'featured'
         ? 0.15
         : 0;
-    this.renderer.setRenderTarget(this.post.target);
-    this.renderer.setClearColor(0xffffff, 1);
-    this.renderer.clear();
-    this.renderer.render(this.scene, this.camera);
-    const hole = this.syncHole(),
-      pointer = this.pointerTrail.tick(dt, this.hole.p),
-      sceneTexture = this.wipe.render(this.post.target.texture, { dt });
-    this.post.render(sceneTexture, {
-      progress: this.bootReveal.pending ? 0 : this.hole.p,
-      time: this.clock,
-      center: hole.center,
-      radius: hole.radius,
-      squash: this.hole.s,
-      ...(this.bootReveal.pending ? {} : pointer),
-    });
+    this.renderScene(dt, hole, pointer);
     this.renderer.render(this.over, this.camera);
     if (this.hole.p > 0 || this.lensChrome.clip !== 'none')
       this.lensChrome.update(this.lensField());
@@ -1809,6 +1809,26 @@ export default class PortfolioScene {
       });
     }
     this.requestFrame();
+  }
+
+  renderScene(dt, hole, pointer) {
+    const progress = this.bootReveal.pending ? 0 : this.hole.p;
+    const ball = this.bootReveal.pending ? 0 : pointer.ball;
+    const needsPost = this.wipe.active || progress > 0 || ball > 0.001;
+    this.renderer.setRenderTarget(needsPost ? this.post.target : null);
+    this.renderer.setClearColor(0xffffff, 1);
+    this.renderer.clear();
+    this.renderer.render(this.scene, this.camera);
+    if (!needsPost) return;
+    const sceneTexture = this.wipe.render(this.post.target.texture, { dt });
+    this.post.render(sceneTexture, {
+      progress,
+      time: this.clock,
+      center: hole.center,
+      radius: hole.radius,
+      squash: this.hole.s,
+      ...(this.bootReveal.pending ? {} : pointer),
+    });
   }
   dispose() {
     this.destroyed = true;

@@ -141,8 +141,8 @@ export default class PageWipe {
 
   _pixelSize() {
     return {
-      width: Math.max(1, Math.round(this.width * this.dpr)),
-      height: Math.max(1, Math.round(this.height * this.dpr)),
+      width: Math.max(1, Math.floor(this.width * this.dpr)),
+      height: Math.max(1, Math.floor(this.height * this.dpr)),
     };
   }
 

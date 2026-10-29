@@ -65,7 +65,9 @@ Keep card activation blocked while the lens is visibly closing, even after React
 
 ## Rendering budget
 
-`renderBudget.js` selects the mobile budget for widths up to 767 CSS pixels or a coarse pointer. Main-scene DPR is capped at 1.5 and further limited to approximately one million render pixels; desktop DPR remains capped at 2. The mobile main renderer disables antialiasing and its lens render target does not allocate the extra depth buffer. Mobile frame scheduling targets 60 frames/s with a running deadline, preserving elapsed animation time across skipped callbacks. These are work budgets, not measured speed guarantees.
+`renderBudget.js` selects the mobile budget for widths up to 767 CSS pixels or a coarse pointer. Main-scene DPR is capped at 2 and further limited to approximately two million render pixels; desktop DPR remains capped at 2. The mobile main renderer disables antialiasing and its lens render target does not allocate the extra depth buffer. Mobile frame scheduling targets 60 frames/s with a running deadline, preserving elapsed animation time across skipped callbacks. These are work budgets, not measured speed guarantees.
+
+Unrefracted frames render directly to the screen. Lens, pointer and page-wipe frames retain the offscreen pipeline; mode changes capture a fresh scene rather than trusting a previous offscreen frame. Full-index chips use native DOM paint while idle, with cached 2–3× rasters for actual deformation and snapshots. `forceRaster` must cover active postprocess effects; `withRasterSnapshot` temporarily includes cached chips even after React unmounts their DOM. Every full-screen target must use the same floor rounding as Three's drawing buffer.
 
 When the lens is closed and the pointer effect is inactive, postprocessing uses a simple copy material instead of evaluating the lens shader. The full effect remains available for interaction. Card hit polygons are cached against geometry and deformation state, so unchanged cards do not rebuild the same projected polygon every frame. Hidden tabs still stop the scene loop and media playback.
 

@@ -13,14 +13,14 @@ test('iPhone 13 budgets the canvas and every shared pass below native DPR withou
     coarsePointer: true,
   });
   assert.equal(budget.mobile, true);
-  assert.equal(budget.dpr, 1.5);
+  assert.equal(budget.dpr, 2);
   assert.equal(budget.fps, 60);
   assert.equal(budget.antialias, false);
   const renderer = { getPixelRatio: () => budget.dpr };
   const lens = new LensPass(renderer, { depthBuffer: false });
   lens.resize(390, 844, budget.dpr);
-  assert.equal(lens.target.width, 585);
-  assert.equal(lens.target.height, 1266);
+  assert.equal(lens.target.width, 780);
+  assert.equal(lens.target.height, 1688);
   assert.equal(lens.target.depthBuffer, false);
   assert.ok(lens.material.fragmentShader.length > 1000, 'the original lens shader remains');
   lens.dispose();
@@ -33,8 +33,8 @@ test('landscape and large touch viewports retain the physical pixel cap; desktop
     [1920, 1080],
   ]) {
     const b = renderBudget({ width, height, devicePixelRatio: 3, coarsePointer: true });
-    assert.ok(width * height * b.dpr ** 2 <= 1_000_001);
-    assert.ok(b.dpr <= 1.5);
+    assert.ok(width * height * b.dpr ** 2 <= 2_000_001);
+    assert.ok(b.dpr <= 2);
     assert.equal(b.fps, 60);
   }
   assert.deepEqual(renderBudget({ width: 1440, height: 900, devicePixelRatio: 3 }), {
@@ -44,6 +44,76 @@ test('landscape and large touch viewports retain the physical pixel cap; desktop
     antialias: true,
   });
   assert.equal(renderBudget({ width: 390, height: 844, devicePixelRatio: 1 }).dpr, 1);
+});
+
+test('fractional DPR passes match the renderer pixel grid without resampling a larger texture', () => {
+  const renderer = { getPixelRatio: () => 1.5 };
+  const lens = new LensPass(renderer);
+  lens.resize(657, 899, 1.5);
+  assert.equal(lens.target.width, 985);
+  assert.equal(lens.target.height, 1348);
+  lens.dispose();
+});
+
+test('ordinary frames draw once, while lens, pointer and page transitions retain their postprocess', () => {
+  const scene = new PortfolioScene({}, {}, [], {});
+  const calls = [];
+  const target = { texture: {} };
+  scene.bootReveal = { pending: false };
+  scene.renderer = {
+    setRenderTarget: (value) => calls.push(['target', value]),
+    setClearColor() {},
+    clear() {},
+    render: () => calls.push(['scene']),
+  };
+  scene.post = { target, render: () => calls.push(['post']) };
+  scene.wipe = {
+    active: false,
+    render: (texture) => {
+      calls.push(['wipe']);
+      return texture;
+    },
+  };
+  const hole = { center: [0.5, 0.5], radius: 0.1 };
+  scene.renderScene(1 / 60, hole, { ball: 0 });
+  assert.deepEqual(calls, [['target', null], ['scene']]);
+  for (const reason of ['lens', 'pointer', 'wipe']) {
+    calls.length = 0;
+    scene.hole.p = reason === 'lens' ? 0.5 : 0;
+    scene.wipe.active = reason === 'wipe';
+    scene.renderScene(1 / 60, hole, { ball: reason === 'pointer' ? 0.5 : 0 });
+    assert.deepEqual(calls, [['target', target], ['scene'], ['wipe'], ['post']]);
+  }
+});
+
+test('a view change captures a fresh frame including cached native index labels', () => {
+  const scene = new PortfolioScene({}, {}, [], {});
+  const calls = [];
+  const target = { texture: {} };
+  scene.renderer = {
+    setRenderTarget: (value) => calls.push(['target', value]),
+    clear() {},
+    render: () => calls.push(['scene']),
+  };
+  scene.post = { target };
+  scene.fullField = {
+    withRasterSnapshot: (draw) => {
+      calls.push(['labels']);
+      draw();
+    },
+  };
+  scene.wipe = {
+    capture: (texture) => calls.push(['capture', texture]),
+    start: () => calls.push(['start']),
+  };
+  scene.setState({ mode: 'full' });
+  assert.deepEqual(calls, [
+    ['labels'],
+    ['target', target],
+    ['scene'],
+    ['capture', target.texture],
+    ['start'],
+  ]);
 });
 
 test('60 Hz timestamp jitter never accidentally halves the render rate', () => {

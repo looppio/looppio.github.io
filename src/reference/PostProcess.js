@@ -126,8 +126,8 @@ export class LensPass {
     this.height = Math.max(1, height);
     this.dpr = Math.max(0.1, dpr);
     this.target.setSize(
-      Math.max(1, Math.round(width * dpr)),
-      Math.max(1, Math.round(height * dpr)),
+      Math.max(1, Math.floor(width * dpr)),
+      Math.max(1, Math.floor(height * dpr)),
     );
     this.u.u_aspect.value.set(this.width / this.height, 1);
     const trailHeight = Math.max(1, Math.round((256 * this.height) / this.width));
